@@ -3,191 +3,212 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Gestione prima nota</title>
+  <title>Prima Nota Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#111827">
   <style>
-    #matrix-canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      background-color: #000000;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .hidden { display: none !important; }
   </style>
 </head>
-<body class="bg-gray-900 text-gray-100 font-sans min-h-screen pb-20">
+<body class="bg-gray-900 text-gray-100 min-h-screen">
 
-  <!-- Matrix Canvas -->
-  <canvas id="matrix-canvas"></canvas>
+  <!-- Matrix Background Off-Screen Canvas per Login -->
+  <canvas id="matrix-canvas" class="fixed inset-0 pointer-events-none z-40" style="display:none;"></canvas>
 
   <!-- Login Modal -->
-  <div id="login-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-gray-900/95 p-8 rounded-3xl w-full max-w-sm border border-emerald-500/40 shadow-[0_0_50px_rgba(16,185,129,0.3)] text-center relative z-10 backdrop-blur-md">
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 mb-4 text-emerald-400 font-mono text-2xl font-bold">
-        &gt;_
+  <div id="login-modal" class="fixed inset-0 bg-gray-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-gray-800/90 border border-gray-700/80 p-6 rounded-2xl w-full max-width-md max-w-sm shadow-2xl relative z-50">
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 mb-3 border border-emerald-500/20">
+          <i class="fa-solid fa-user-ninja text-2xl"></i>
+        </div>
+        <h2 class="text-xl font-black tracking-wide text-white uppercase">Prima Nota Pro</h2>
+        <p class="text-xs text-gray-400 mt-1">Inserisci le credenziali di accesso</p>
       </div>
-      <h2 class="text-2xl font-black mb-1 text-white tracking-wide">Gestione prima nota</h2>
-      <p class="text-xs text-emerald-400 font-mono mb-6">Autenticazione Richiesta</p>
 
-      <form id="login-form" class="space-y-4 text-left">
+      <form id="login-form" class="space-y-4">
         <div>
-          <label class="block text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1 font-mono">Username</label>
-          <input type="text" id="username" class="w-full bg-gray-800/90 border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition" required placeholder="Inserisci username">
+          <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Utente</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+              <i class="fa-solid fa-user"></i>
+            </span>
+            <input type="text" id="username" required class="w-full pl-9 pr-3 py-2.5 bg-gray-900 border border-gray-700 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-white outline-none text-sm transition">
+          </div>
         </div>
+
         <div>
-          <label class="block text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1 font-mono">Password</label>
-          <input type="password" id="password" class="w-full bg-gray-800/90 border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition" required placeholder="••••••••">
+          <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Password</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+              <i class="fa-solid fa-lock"></i>
+            </span>
+            <input type="password" id="password" required class="w-full pl-9 pr-10 py-2.5 bg-gray-900 border border-gray-700 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-white outline-none text-sm transition">
+            <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-200">
+              <i id="password-toggle-icon" class="fa-solid fa-eye"></i>
+            </button>
+          </div>
         </div>
-        
-        <div class="flex items-center justify-between text-xs">
-          <label class="flex items-center gap-2 text-gray-300 cursor-pointer">
-            <input type="checkbox" id="remember-me" class="rounded bg-gray-800 border-gray-700 text-emerald-500 focus:ring-emerald-500" checked>
-            <span>Ricorda credenziali</span>
+
+        <div class="flex items-center justify-between">
+          <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-400">
+            <input type="checkbox" id="remember-me" class="rounded bg-gray-900 border-gray-700 text-emerald-500 focus:ring-emerald-500">
+            Ricordami
           </label>
         </div>
 
-        <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-gray-950 font-black py-3.5 rounded-xl transition shadow-lg shadow-emerald-500/25 uppercase text-sm tracking-wider mt-2">Accedi</button>
+        <button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 font-black text-gray-950 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg shadow-emerald-500/20">
+          <span>Accedi</span>
+          <i class="fa-solid fa-bolt"></i>
+        </button>
       </form>
     </div>
   </div>
 
-  <!-- Main App UI -->
-  <div id="app" class="hidden max-w-md mx-auto p-4 relative z-10">
-    
-    <!-- Header Balances Breakdown -->
-    <div class="bg-gray-800 p-4 rounded-2xl border border-gray-700 mb-4 shadow-md">
-      <div class="flex justify-between items-center mb-3">
-        <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Disponibilità e Saldi</span>
-        <button onclick="logout()" class="text-xs bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded-lg text-gray-300 transition">Esci</button>
+  <!-- App Main Content -->
+  <div id="app" class="hidden max-w-md mx-auto p-4 pb-20">
+    <!-- Header / Nav -->
+    <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-800">
+      <div>
+        <h1 class="font-black text-lg text-emerald-400 flex items-center gap-2">
+          <i class="fa-solid fa-vault"></i> PRIMA NOTA PRO
+        </h1>
       </div>
+      <button onclick="logout()" class="text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3 py-1.5 rounded-lg border border-rose-500/20 font-bold transition flex items-center gap-1.5">
+        <i class="fa-solid fa-power-off"></i> Esci
+      </button>
+    </div>
 
-      <div class="grid grid-cols-3 gap-2 text-center mb-3">
-        <!-- Contanti -->
-        <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-700/60">
-          <div class="text-[10px] uppercase text-gray-400 font-semibold mb-1">Contanti</div>
-          <div id="bal-cash" class="text-xs font-black text-emerald-400">0,00 €</div>
-        </div>
-        <!-- Banca / Bancomat -->
-        <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-700/60">
-          <div class="text-[10px] uppercase text-gray-400 font-semibold mb-1">Banca</div>
-          <div id="bal-banca" class="text-xs font-black text-emerald-400">0,00 €</div>
-        </div>
-        <!-- Carta di Credito -->
-        <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-700/60">
-          <div class="text-[10px] uppercase text-gray-400 font-semibold mb-1">Carta (Addebiti)</div>
-          <div id="bal-carta" class="text-xs font-black text-rose-400">0,00 €</div>
-        </div>
+    <!-- Saldi dei Conti -->
+    <div class="grid grid-cols-3 gap-2 mb-4">
+      <div class="bg-gray-800/80 p-2.5 rounded-xl border border-gray-700/80 text-center">
+        <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Contanti</div>
+        <div id="bal-cash" class="text-xs font-black text-emerald-400 mt-0.5">€ 0,00</div>
       </div>
-
-      <!-- Backup & Restore Buttons -->
-      <div class="flex gap-2 border-t border-gray-700/60 pt-3">
-        <button onclick="exportData()" class="flex-1 bg-gray-700/80 hover:bg-gray-600 text-[11px] py-1.5 px-2 rounded-xl text-emerald-400 font-bold border border-gray-600 flex items-center justify-center gap-1 transition">
-          ⬇️ Esporta Backup
-        </button>
-        <button onclick="document.getElementById('import-file').click()" class="flex-1 bg-gray-700/80 hover:bg-gray-600 text-[11px] py-1.5 px-2 rounded-xl text-amber-400 font-bold border border-gray-600 flex items-center justify-center gap-1 transition">
-          ⬆️ Importa Backup
-        </button>
-        <input type="file" id="import-file" class="hidden" accept=".json" onchange="importData(event)">
+      <div class="bg-gray-800/80 p-2.5 rounded-xl border border-gray-700/80 text-center">
+        <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Banca</div>
+        <div id="bal-banca" class="text-xs font-black text-emerald-400 mt-0.5">€ 0,00</div>
+      </div>
+      <div class="bg-gray-800/80 p-2.5 rounded-xl border border-gray-700/80 text-center">
+        <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Carta (Mese)</div>
+        <div id="bal-carta" class="text-xs font-black text-rose-400 mt-0.5">€ 0,00</div>
       </div>
     </div>
 
-    <!-- Form Registrazione / Modifica -->
-    <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 mb-6 shadow-lg">
-      <div class="flex justify-between items-center mb-4">
-        <h3 id="form-title" class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Nuova Registrazione</h3>
-        <button type="button" id="btn-cancel-edit" onclick="resetForm()" class="hidden text-xs text-rose-400 underline font-semibold">Annulla Modifica</button>
+    <!-- Form Inserimento/Modifica -->
+    <div class="bg-gray-800/90 border border-gray-700/80 p-4 rounded-2xl mb-4 shadow-xl">
+      <div class="flex justify-between items-center mb-3">
+        <h2 id="form-title" class="font-bold text-sm text-gray-200">Nuova Registrazione</h2>
+        <button id="btn-cancel-edit" onclick="resetForm()" class="hidden text-[10px] text-gray-400 hover:text-white bg-gray-700 px-2 py-1 rounded">Annulla Modifica</button>
       </div>
 
-      <form id="transaction-form" class="space-y-4">
-        <input type="hidden" id="edit-id" value="">
+      <form id="transaction-form" class="space-y-3">
+        <input type="hidden" id="edit-id">
+
+        <!-- Selector Spesa / Incasso -->
+        <div class="grid grid-cols-2 gap-2 p-1 bg-gray-900 rounded-xl">
+          <button type="button" id="btn-spesa" onclick="setType('spesa')" class="py-2 rounded-xl font-bold bg-rose-500 text-white transition text-xs flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-arrow-trend-down"></i> Spesa
+          </button>
+          <button type="button" id="btn-incasso" onclick="setType('incasso')" class="py-2 rounded-xl font-bold bg-gray-700 text-gray-300 transition text-xs flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-arrow-trend-up"></i> Incasso
+          </button>
+        </div>
 
         <div class="grid grid-cols-2 gap-2">
-          <button type="button" id="btn-spesa" onclick="setType('spesa')" class="py-2.5 rounded-xl font-bold bg-rose-500 text-white transition">Spesa</button>
-          <button type="button" id="btn-incasso" onclick="setType('incasso')" class="py-2.5 rounded-xl font-bold bg-gray-700 text-gray-300 transition">Incasso</button>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Importo (€)</label>
-            <input type="number" step="0.01" id="amount" placeholder="0.00" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-lg font-bold focus:outline-none focus:border-emerald-500" required>
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Importo (€)</label>
+            <input type="number" step="0.01" id="amount" required placeholder="0.00" class="w-full p-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white font-bold text-sm outline-none focus:border-emerald-500">
           </div>
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Data</label>
-            <input type="date" id="date" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500" required>
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Data</label>
+            <input type="date" id="date" required class="w-full p-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Categoria</label>
+              <button type="button" onclick="addCategory()" class="text-[10px] text-emerald-400 font-bold hover:underline">+ Nuova</button>
+            </div>
+            <select id="category" class="w-full p-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs outline-none focus:border-emerald-500"></select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Conto / Metodo</label>
+            <select id="account" class="w-full p-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs outline-none focus:border-emerald-500">
+              <option value="cash">Contanti</option>
+              <option value="banca">Banca</option>
+              <option value="carta">Carta di Credito</option>
+            </select>
           </div>
         </div>
 
         <div>
-          <div class="flex justify-between items-center mb-1">
-            <label class="text-xs text-gray-400">Categoria</label>
-            <button type="button" onclick="addCategory()" class="text-xs text-emerald-400 font-semibold">+ Nuova</button>
-          </div>
-          <select id="category" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500" required></select>
+          <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Note (Opzionale)</label>
+          <input type="text" id="note" placeholder="es. Pranzo di lavoro" class="w-full p-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs outline-none focus:border-emerald-500">
         </div>
 
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Conto / Metodo</label>
-          <select id="account" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500" required>
-            <option value="cash">Contanti</option>
-            <option value="banca">Banca / Bancomat</option>
-            <option value="carta">Carta di Credito</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Note (opzionale)</label>
-          <input type="text" id="note" placeholder="Descrizione..." class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
-        </div>
-
-        <button type="submit" id="btn-submit" class="w-full bg-emerald-500 active:bg-emerald-600 text-gray-950 font-black py-3.5 rounded-xl text-base transition shadow-lg shadow-emerald-500/20">Salva</button>
+        <button type="submit" id="btn-submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 font-black text-gray-950 rounded-xl transition text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-floppy-disk"></i> Salva
+        </button>
       </form>
     </div>
 
-    <div class="bg-gray-800 p-3 rounded-2xl border border-gray-700 mb-4 shadow-md flex items-center justify-between gap-2">
-      <span class="text-xs text-gray-400 font-semibold uppercase">Filtra Periodo:</span>
-      <input type="month" id="month-filter" onchange="loadData()" class="bg-gray-700 border border-gray-600 rounded-xl px-3 py-1.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+    <!-- Filtro Mese e Tab -->
+    <div class="flex items-center justify-between mb-3 gap-2">
+      <input type="month" id="month-filter" onchange="loadData()" class="p-2 bg-gray-800 border border-gray-700 rounded-xl text-xs text-white outline-none">
+      
+      <div class="flex bg-gray-800 p-1 rounded-xl border border-gray-700 flex-1 max-w-[200px]">
+        <button id="tab-history" onclick="showTab('history')" class="flex-1 py-1 text-center text-xs font-bold border-b-2 border-emerald-400 text-emerald-400">Movimenti</button>
+        <button id="tab-stats" onclick="showTab('stats')" class="flex-1 py-1 text-center text-xs font-bold text-gray-400">Statistiche</button>
+      </div>
     </div>
 
-    <div class="bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-md">
-      <div class="flex border-b border-gray-700 mb-4">
-        <button onclick="showTab('history')" id="tab-history" class="flex-1 py-2 text-center text-sm font-bold border-b-2 border-emerald-400 text-emerald-400">Movimenti</button>
-        <button onclick="showTab('stats')" id="tab-stats" class="flex-1 py-2 text-center text-sm font-bold text-gray-400">Statistiche</button>
+    <!-- Contenuto Tab Movimenti -->
+    <div id="content-history" class="space-y-2"></div>
+
+    <!-- Contenuto Tab Statistiche -->
+    <div id="content-stats" class="hidden space-y-4">
+      <div class="bg-gray-800/80 p-3 rounded-2xl border border-gray-700/80">
+        <div class="flex justify-between items-center mb-3">
+          <span class="text-xs font-bold text-gray-300">Grafico Spese</span>
+          <div class="flex gap-1 bg-gray-900 p-1 rounded-lg">
+            <button id="btn-chart-doughnut" onclick="setChartType('doughnut')" class="px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-500 text-gray-950 transition">Ciambella</button>
+            <button id="btn-chart-bar" onclick="setChartType('bar')" class="px-2 py-1 text-[10px] font-bold rounded-md text-gray-300 transition">Barre</button>
+          </div>
+        </div>
+        <canvas id="chart-categories" class="max-h-56"></canvas>
       </div>
 
-      <div id="content-history" class="space-y-3 max-h-96 overflow-y-auto"></div>
+      <div class="flex justify-between items-center">
+        <span class="text-xs font-bold uppercase text-gray-400">Analisi per Categoria</span>
+        <select id="stats-sort" onchange="loadData()" class="bg-gray-800 border border-gray-700 text-[10px] text-gray-300 rounded-lg p-1">
+          <option value="alpha">Ordine Alfabetico</option>
+          <option value="max">Spesa Maggiore</option>
+          <option value="min">Spesa Minore</option>
+        </select>
+      </div>
 
-      <div id="content-stats" class="hidden space-y-6">
-        <div>
-          <div class="flex justify-between items-center mb-3">
-            <span class="text-xs font-semibold text-gray-400 uppercase">Resoconto per Categoria</span>
-            <select id="stats-sort" onchange="loadData()" class="bg-gray-700 text-xs border border-gray-600 rounded-lg px-2 py-1 text-gray-200 focus:outline-none focus:border-emerald-500">
-              <option value="alpha">Alfabetico</option>
-              <option value="max">Maggiore Spesa</option>
-              <option value="min">Minore Spesa</option>
-            </select>
-          </div>
-          <div id="category-analysis" class="space-y-3"></div>
-        </div>
+      <div id="category-analysis" class="space-y-2"></div>
 
-        <div class="pt-2 border-t border-gray-700">
-          <div class="flex justify-between items-center mb-3">
-            <span class="text-xs font-semibold text-gray-400 uppercase">Ripartizione Spese</span>
-            <div class="flex bg-gray-700 rounded-lg p-0.5 border border-gray-600">
-              <button onclick="setChartType('doughnut')" id="btn-chart-doughnut" class="px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-500 text-gray-950 transition">Torta</button>
-              <button onclick="setChartType('bar')" id="btn-chart-bar" class="px-2 py-1 text-[10px] font-bold rounded-md text-gray-300 transition">Istogramma</button>
-            </div>
-          </div>
-          <canvas id="chart-categories" class="w-full"></canvas>
-        </div>
+      <!-- Backup & Restore -->
+      <div class="pt-4 border-t border-gray-800 grid grid-cols-2 gap-2">
+        <button onclick="exportData()" class="py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-download"></i> Esporta JSON
+        </button>
+        <label class="py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-upload"></i> Importa JSON
+          <input type="file" id="import-file" accept=".json" onchange="importData(event)" class="hidden">
+        </label>
       </div>
     </div>
   </div>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=1.0.1"></script>
 </body>
 </html>

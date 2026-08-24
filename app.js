@@ -55,6 +55,22 @@ function stopMatrix() {
 window.addEventListener('resize', initMatrix);
 startMatrix();
 
+// --- Toggle Password Visibility ---
+function togglePasswordVisibility() {
+  const pwdInput = document.getElementById('password');
+  const icon = document.getElementById('password-toggle-icon');
+  
+  if (pwdInput.type === 'password') {
+    pwdInput.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    pwdInput.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+}
+
 // --- Algoritmo SHA-256 Pure JS (Funziona anche su HTTP / File / WebView) ---
 function sha256Pure(ascii) {
   function rightRotate(value, amount) {
@@ -197,7 +213,7 @@ const today = new Date();
 document.getElementById('date').valueAsDate = today;
 document.getElementById('month-filter').value = today.toISOString().slice(0, 7);
 
-// Credenziali Sicure (Hash SHA-256 di 'teMpl3b4r_')
+// Credenziali Sicure
 const TARGET_USER = 'michele';
 const TARGET_HASH = '5f14e7a0e3f84cb5877f227ee0640d9cbff3628ff3a1a97d9fbbf939cd8dc9e2';
 
@@ -242,11 +258,11 @@ function setType(type) {
   const btnSpesa = document.getElementById('btn-spesa');
   const btnIncasso = document.getElementById('btn-incasso');
   if (type === 'spesa') {
-    btnSpesa.className = 'py-2.5 rounded-xl font-bold bg-rose-500 text-white transition';
-    btnIncasso.className = 'py-2.5 rounded-xl font-bold bg-gray-700 text-gray-300 transition';
+    btnSpesa.className = 'py-2 rounded-xl font-bold bg-rose-500 text-white transition text-xs flex items-center justify-center gap-1.5';
+    btnIncasso.className = 'py-2 rounded-xl font-bold bg-gray-700 text-gray-300 transition text-xs flex items-center justify-center gap-1.5';
   } else {
-    btnIncasso.className = 'py-2.5 rounded-xl font-bold bg-emerald-500 text-white transition';
-    btnSpesa.className = 'py-2.5 rounded-xl font-bold bg-gray-700 text-gray-300 transition';
+    btnIncasso.className = 'py-2 rounded-xl font-bold bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5';
+    btnSpesa.className = 'py-2 rounded-xl font-bold bg-gray-700 text-gray-300 transition text-xs flex items-center justify-center gap-1.5';
   }
 }
 
@@ -304,7 +320,7 @@ function resetForm() {
   document.getElementById('note').value = '';
   document.getElementById('date').valueAsDate = new Date();
   document.getElementById('form-title').textContent = 'Nuova Registrazione';
-  document.getElementById('btn-submit').textContent = 'Salva';
+  document.getElementById('btn-submit').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salva';
   document.getElementById('btn-cancel-edit').classList.add('hidden');
   setType('spesa');
 }
@@ -368,23 +384,23 @@ function renderHistory(list) {
     const signedValue = isSpesa ? -item.amount : item.amount;
     
     return `
-      <div class="flex justify-between items-center p-3 bg-gray-700/50 rounded-xl border border-gray-700">
+      <div class="flex justify-between items-center p-3 bg-gray-800/60 rounded-xl border border-gray-700/80">
         <div>
-          <div class="font-bold text-sm">${item.category} <span class="text-xs font-normal text-gray-400">(${accLabel})</span></div>
-          <div class="text-xs text-gray-400">${item.date} ${item.note ? '• ' + item.note : ''}</div>
+          <div class="font-bold text-xs text-gray-200">${item.category} <span class="text-[10px] font-normal text-gray-400">(${accLabel})</span></div>
+          <div class="text-[10px] text-gray-400">${item.date} ${item.note ? '• ' + item.note : ''}</div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
           <div class="font-black text-right text-xs ${isSpesa ? 'text-rose-400' : 'text-emerald-400'}">
             ${formatCurrency(signedValue)}
           </div>
           <div class="flex gap-1">
-            <button onclick="editTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-gray-500 p-1.5 rounded-lg text-gray-200">✏️</button>
-            <button onclick="deleteTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-rose-600 p-1.5 rounded-lg text-gray-200">🗑️</button>
+            <button onclick="editTransaction(${item.id})" class="text-xs bg-gray-700 hover:bg-gray-600 p-1.5 rounded-lg text-gray-200"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button onclick="deleteTransaction(${item.id})" class="text-xs bg-gray-700 hover:bg-rose-600 p-1.5 rounded-lg text-gray-200"><i class="fa-solid fa-trash-can"></i></button>
           </div>
         </div>
       </div>
     `;
-  }).join('') || '<div class="text-gray-400 text-center py-4">Nessun movimento nel periodo selezionato</div>';
+  }).join('') || '<div class="text-gray-400 text-center py-4 text-xs">Nessun movimento nel periodo selezionato</div>';
 }
 
 function editTransaction(id) {
@@ -403,7 +419,7 @@ function editTransaction(id) {
     setType(item.type);
     
     document.getElementById('form-title').textContent = 'Modifica Registrazione';
-    document.getElementById('btn-submit').textContent = 'Aggiorna Movimento';
+    document.getElementById('btn-submit').innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Aggiorna';
     document.getElementById('btn-cancel-edit').classList.remove('hidden');
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -473,19 +489,19 @@ function renderStats(list) {
       const isPositive = utile >= 0;
 
       return `
-        <div class="bg-gray-700/40 p-3 rounded-xl border border-gray-700/80">
-          <div class="font-bold text-sm text-gray-200 mb-1">${cat}</div>
-          <div class="grid grid-cols-3 gap-1 text-xs text-center">
-            <div class="bg-gray-800/60 p-1.5 rounded-lg">
-              <span class="text-gray-400 block text-[10px]">Incassati</span>
+        <div class="bg-gray-800/40 p-2.5 rounded-xl border border-gray-700/80">
+          <div class="font-bold text-xs text-gray-200 mb-1">${cat}</div>
+          <div class="grid grid-cols-3 gap-1 text-[10px] text-center">
+            <div class="bg-gray-900/60 p-1 rounded-lg">
+              <span class="text-gray-400 block text-[9px]">Incassati</span>
               <span class="font-semibold text-emerald-400">${formatCurrency(inc)}</span>
             </div>
-            <div class="bg-gray-800/60 p-1.5 rounded-lg">
-              <span class="text-gray-400 block text-[10px]">Spesi</span>
+            <div class="bg-gray-900/60 p-1 rounded-lg">
+              <span class="text-gray-400 block text-[9px]">Spesi</span>
               <span class="font-semibold text-rose-400">${formatCurrency(-spe)}</span>
             </div>
-            <div class="bg-gray-800/60 p-1.5 rounded-lg">
-              <span class="text-gray-400 block text-[10px]">Utile / Netto</span>
+            <div class="bg-gray-900/60 p-1 rounded-lg">
+              <span class="text-gray-400 block text-[9px]">Utile / Netto</span>
               <span class="font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
                 ${formatCurrency(utile)}
               </span>
@@ -524,7 +540,7 @@ function renderStats(list) {
       plugins: { 
         legend: { 
           display: currentChartType === 'doughnut',
-          labels: { color: '#9ca3af', font: { size: 11 } } 
+          labels: { color: '#9ca3af', font: { size: 10 } } 
         },
         tooltip: {
           callbacks: {
@@ -538,7 +554,7 @@ function renderStats(list) {
         }
       },
       scales: currentChartType === 'bar' ? {
-        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { display: false } },
+        x: { ticks: { color: '#9ca3af', font: { size: 9 } }, grid: { display: false } },
         y: { ticks: { color: '#9ca3af', callback: (value) => formatCurrency(value) }, grid: { color: '#374151' } }
       } : {}
     }
@@ -549,13 +565,13 @@ function showTab(tab) {
   if (tab === 'history') {
     document.getElementById('content-history').classList.remove('hidden');
     document.getElementById('content-stats').classList.add('hidden');
-    document.getElementById('tab-history').className = 'flex-1 py-2 text-center text-sm font-bold border-b-2 border-emerald-400 text-emerald-400';
-    document.getElementById('tab-stats').className = 'flex-1 py-2 text-center text-sm font-bold text-gray-400';
+    document.getElementById('tab-history').className = 'flex-1 py-1 text-center text-xs font-bold border-b-2 border-emerald-400 text-emerald-400';
+    document.getElementById('tab-stats').className = 'flex-1 py-1 text-center text-xs font-bold text-gray-400';
   } else {
     document.getElementById('content-history').classList.add('hidden');
     document.getElementById('content-stats').classList.remove('hidden');
-    document.getElementById('tab-stats').className = 'flex-1 py-2 text-center text-sm font-bold border-b-2 border-emerald-400 text-emerald-400';
-    document.getElementById('tab-history').className = 'flex-1 py-2 text-center text-sm font-bold text-gray-400';
+    document.getElementById('tab-stats').className = 'flex-1 py-1 text-center text-xs font-bold border-b-2 border-emerald-400 text-emerald-400';
+    document.getElementById('tab-history').className = 'flex-1 py-1 text-center text-xs font-bold text-gray-400';
   }
 }
 

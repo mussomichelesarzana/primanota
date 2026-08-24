@@ -1,15 +1,21 @@
 {
-  "name": "Prima Nota Fast",
   "short_name": "PrimaNota",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#1f2937",
+  "name": "Prima Nota Pro",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2845/2845731.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
-  ]
+  ],
+  "start_url": "./index.html",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "display": "standalone",
+  "orientation": "portrait"
 }
