@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Prima Nota Pro</title>
   
-  <!-- PWA & Web App Metatag -->
+  <!-- PWA Metatag & Manifest -->
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <meta name="theme-color" content="#111827">
+  <meta name="theme-color" content="#030712">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Prima Nota">
@@ -19,7 +19,7 @@
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen">
 
-  <!-- Login Modal -->
+  <!-- Modal di Login -->
   <div id="login-modal" class="fixed inset-0 bg-gray-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div class="bg-gray-800/90 border border-gray-700/80 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative z-50">
       <div class="text-center mb-6">
@@ -69,6 +69,20 @@
     </div>
   </div>
 
-  <script src="app.js?v=4.1.0"></script>
+  <!-- Contenitore Principale dell'Applicazione -->
+  <main id="app-content" class="hidden p-4 max-w-2xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-xl font-bold text-emerald-400">Prima Nota Pro</h1>
+      <button onclick="doLogout()" class="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg hover:bg-red-500/20 transition">
+        Esci <i class="fa-solid fa-right-from-bracket ml-1"></i>
+      </button>
+    </div>
+    
+    <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl text-center">
+      <p class="text-gray-300">Applicazione caricata ed autenticata correttamente.</p>
+    </div>
+  </main>
+
+  <script src="app.js?v=5.0.0"></script>
 </body>
 </html>

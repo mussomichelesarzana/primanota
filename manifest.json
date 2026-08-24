@@ -1,21 +1,21 @@
 {
-  "short_name": "PrimaNota",
   "name": "Prima Nota Pro",
+  "short_name": "Prima Nota",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#030712",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "type": "image/png"
     },
     {
       "src": "icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "type": "image/png"
     }
-  ],
-  "start_url": "./index.html",
-  "background_color": "#111827",
-  "theme_color": "#111827",
-  "display": "standalone",
-  "orientation": "portrait"
+  ]
 }
