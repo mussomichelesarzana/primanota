@@ -1,8 +1,10 @@
 // --- Matrix Rain Animation ---
 const canvas = document.getElementById('matrix-canvas');
 const ctx = canvas.getContext('2d');
+let matrixInterval = null;
 
 function resizeCanvas() {
+  if (!canvas) return;
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 }
@@ -34,12 +36,23 @@ function drawMatrix() {
     rainDrops[i]++;
   }
 }
-setInterval(drawMatrix, 33);
 
+function stopMatrix() {
+  if (matrixInterval) clearInterval(matrixInterval);
+  if (canvas) canvas.style.display = 'none';
+}
+
+function startMatrix() {
+  if (canvas) canvas.style.display = 'block';
+  matrixInterval = setInterval(drawMatrix, 33);
+}
+
+startMatrix();
+
+// --- App Logic ---
 let currentType = 'spesa';
 let db;
 
-// Inizializza IndexedDB
 const request = indexedDB.open('PrimaNotaDB', 1);
 request.onupgradeneeded = (e) => {
   db = e.target.result;
@@ -49,29 +62,43 @@ request.onupgradeneeded = (e) => {
 };
 request.onsuccess = (e) => {
   db = e.target.result;
-  // Controllo sessione salvata
+  
+  // Ripristina credenziali salvate nei campi
+  const savedUser = localStorage.getItem('saved_username');
+  const savedPass = localStorage.getItem('saved_password');
+  if (savedUser) document.getElementById('username').value = savedUser;
+  if (savedPass) document.getElementById('password').value = savedPass;
+
+  // Auto-login se contrassegnato
   if (localStorage.getItem('isLoggedIn') === 'true') {
     initApp();
   }
 };
 
-// Categorie predefinite
 let categories = JSON.parse(localStorage.getItem('categories')) || [
-  'Spesa', 'Ristoranti', 'Carburante', 'Bollette', 'Stipendio', 'Gioco d\'azzardo'
+  'Alimentari', 'Ristoranti', 'Carburante', 'Bollette', 'Stipendio', 'Gioco d\'azzardo', 'Svago', 'Varie'
 ];
 
-// Imposta la data odierna nel form e il mese corrente nel filtro
 const today = new Date();
 document.getElementById('date').valueAsDate = today;
 document.getElementById('month-filter').value = today.toISOString().slice(0, 7);
 
-// Autenticazione con salvataggio credenziali sul browser
+// Login Logic
 document.getElementById('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const u = document.getElementById('username').value;
   const p = document.getElementById('password').value;
+  const remember = document.getElementById('remember-me').checked;
+
   if (u === 'michele' && p === '12345678') {
     localStorage.setItem('isLoggedIn', 'true');
+    if (remember) {
+      localStorage.setItem('saved_username', u);
+      localStorage.setItem('saved_password', p);
+    } else {
+      localStorage.removeItem('saved_username');
+      localStorage.removeItem('saved_password');
+    }
     initApp();
   } else {
     alert('Credenziali errate!');
@@ -79,11 +106,14 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
 });
 
 function logout() {
-  localStorage.removeItem('isLoggedIn');
-  location.reload();
+  if (confirm('Vuoi disconnetterti?')) {
+    localStorage.removeItem('isLoggedIn');
+    location.reload();
+  }
 }
 
 function initApp() {
+  stopMatrix(); // Ferma l'animazione Matrix all'ingresso nell'app
   document.getElementById('login-modal').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   renderCategories();
@@ -118,7 +148,6 @@ function addCategory() {
   }
 }
 
-// Inserimento o Modifica transazione
 document.getElementById('transaction-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const editId = document.getElementById('edit-id').value;
@@ -161,7 +190,6 @@ function resetForm() {
   setType('spesa');
 }
 
-// Caricamento Dati
 function loadData() {
   const filterMonth = document.getElementById('month-filter').value;
   const store = db.transaction('transactions', 'readonly').objectStore('transactions');
@@ -207,7 +235,6 @@ function renderHistory(list) {
   totalEl.className = `text-2xl font-black ${total >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 }
 
-// Modifica ed Eliminazione
 function editTransaction(id) {
   const store = db.transaction('transactions', 'readonly').objectStore('transactions');
   store.get(id).onsuccess = (e) => {
