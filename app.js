@@ -53,8 +53,6 @@ function stopMatrix() {
 }
 
 window.addEventListener('resize', initMatrix);
-
-// Parte subito la pioggia Matrix
 startMatrix();
 
 // --- App Logic ---
@@ -201,6 +199,11 @@ function loadData() {
   
   store.getAll().onsuccess = (e) => {
     const allItems = e.target.result;
+    
+    // 1. Calcolo saldi in tempo reale
+    calculateAccountBalances(allItems, filterMonth);
+
+    // 2. Filtra per la lista visibile
     const filteredList = allItems.filter(item => item.date.startsWith(filterMonth))
                                  .sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -209,17 +212,55 @@ function loadData() {
   };
 }
 
+function calculateAccountBalances(allItems, filterMonth) {
+  let cashTotal = 0;
+  let bancaTotal = 0;
+  let cartaMonthTotal = 0;
+
+  allItems.forEach(item => {
+    const isSpesa = item.type === 'spesa';
+    const amount = isSpesa ? -item.amount : item.amount;
+
+    // Contanti e Banca mantengono lo storico complessivo
+    if (item.account === 'cash') {
+      cashTotal += amount;
+    } else if (item.account === 'banca') {
+      bancaTotal += amount;
+    } else if (item.account === 'carta') {
+      // Carta di Credito: somma solo il mese filtrato attuale
+      if (item.date.startsWith(filterMonth)) {
+        cartaMonthTotal += isSpesa ? item.amount : -item.amount;
+      }
+    }
+  });
+
+  // Render Contanti
+  const cashEl = document.getElementById('bal-cash');
+  cashEl.textContent = `€ ${cashTotal.toFixed(2)}`;
+  cashEl.className = `text-sm font-black ${cashTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+  // Render Banca
+  const bancaEl = document.getElementById('bal-banca');
+  bancaEl.textContent = `€ ${bancaTotal.toFixed(2)}`;
+  bancaEl.className = `text-sm font-black ${bancaTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+  // Render Carta (Addebito previsto)
+  const cartaEl = document.getElementById('bal-carta');
+  cartaEl.textContent = `€ ${cartaMonthTotal.toFixed(2)}`;
+  cartaEl.className = `text-sm font-black ${cartaMonthTotal > 0 ? 'text-rose-400' : 'text-emerald-400'}`;
+}
+
 function renderHistory(list) {
   const container = document.getElementById('content-history');
-  let total = 0;
   
   container.innerHTML = list.map(item => {
     const isSpesa = item.type === 'spesa';
-    total += isSpesa ? -item.amount : item.amount;
+    const accLabel = item.account === 'cash' ? 'Contanti' : (item.account === 'banca' ? 'Banca' : 'Carta');
+    
     return `
       <div class="flex justify-between items-center p-3 bg-gray-700/50 rounded-xl border border-gray-700">
         <div>
-          <div class="font-bold text-sm">${item.category} <span class="text-xs font-normal text-gray-400">(${item.account})</span></div>
+          <div class="font-bold text-sm">${item.category} <span class="text-xs font-normal text-gray-400">(${accLabel})</span></div>
           <div class="text-xs text-gray-400">${item.date} ${item.note ? '• ' + item.note : ''}</div>
         </div>
         <div class="flex items-center gap-3">
@@ -234,10 +275,6 @@ function renderHistory(list) {
       </div>
     `;
   }).join('') || '<div class="text-gray-400 text-center py-4">Nessun movimento nel periodo selezionato</div>';
-
-  const totalEl = document.getElementById('total-balance');
-  totalEl.textContent = `€ ${total.toFixed(2)}`;
-  totalEl.className = `text-2xl font-black ${total >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 }
 
 function editTransaction(id) {
@@ -275,7 +312,6 @@ function deleteTransaction(id) {
 let chartInstance = null;
 function renderStats(list) {
   const catAnalysis = {};
-  const accountsMap = { cash: 0, banca: 0, carta: 0 };
 
   list.forEach(item => {
     if (!catAnalysis[item.category]) {
@@ -284,10 +320,8 @@ function renderStats(list) {
 
     if (item.type === 'spesa') {
       catAnalysis[item.category].spese += item.amount;
-      accountsMap[item.account] = (accountsMap[item.account] || 0) - item.amount;
     } else {
       catAnalysis[item.category].incassi += item.amount;
-      accountsMap[item.account] = (accountsMap[item.account] || 0) + item.amount;
     }
   });
 
@@ -326,13 +360,6 @@ function renderStats(list) {
       `;
     }).join('');
   }
-
-  document.getElementById('account-breakdown').innerHTML = `
-    <div class="text-xs font-semibold text-gray-400 mb-2 uppercase">Flusso per Conto (Periodo)</div>
-    <div class="flex justify-between text-sm"><span>Contanti:</span> <span class="font-bold">€ ${accountsMap.cash.toFixed(2)}</span></div>
-    <div class="flex justify-between text-sm"><span>Banca:</span> <span class="font-bold">€ ${accountsMap.banca.toFixed(2)}</span></div>
-    <div class="flex justify-between text-sm"><span>Carta di Credito:</span> <span class="font-bold">€ ${accountsMap.carta.toFixed(2)}</span></div>
-  `;
 
   const chartLabels = [];
   const chartData = [];
