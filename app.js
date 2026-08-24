@@ -55,94 +55,7 @@ function stopMatrix() {
 window.addEventListener('resize', initMatrix);
 startMatrix();
 
-// --- Toggle Password Visibility ---
-function togglePasswordVisibility() {
-  const pwdInput = document.getElementById('password');
-  const icon = document.getElementById('password-toggle-icon');
-  
-  if (pwdInput.type === 'password') {
-    pwdInput.type = 'text';
-    icon.classList.remove('fa-eye');
-    icon.classList.add('fa-eye-slash');
-  } else {
-    pwdInput.type = 'password';
-    icon.classList.remove('fa-eye-slash');
-    icon.classList.add('fa-eye');
-  }
-}
-
-// --- Credenziali & Login ---
-function doLogin(e) {
-  if (e) e.preventDefault();
-
-  const u = document.getElementById('username').value.trim().toLowerCase();
-  const p = document.getElementById('password').value.trim();
-  const remember = document.getElementById('remember-me').checked;
-
-  if (!u || !p) {
-    alert('Compila tutti i campi!');
-    return;
-  }
-
-  // Verifica diretta senza Crypto API
-  if (u === 'michele' && p === 't0p3tt4!') {
-    localStorage.setItem('isLoggedIn', 'true');
-    if (remember) {
-      localStorage.setItem('saved_username', u);
-    } else {
-      localStorage.removeItem('saved_username');
-    }
-    initApp();
-  } else {
-    alert('Credenziali errate!');
-  }
-}
-
-function togglePasswordVisibility() {
-  const passwordInput = document.getElementById('password');
-  const toggleIcon = document.getElementById('password-toggle-icon');
-  
-  if (passwordInput.type === 'password') {
-    passwordInput.type = 'text';
-    toggleIcon.classList.remove('fa-eye');
-    toggleIcon.classList.add('fa-eye-slash');
-  } else {
-    passwordInput.type = 'password';
-    toggleIcon.classList.remove('fa-eye-slash');
-    toggleIcon.classList.add('fa-eye');
-  }
-}
-
-function togglePasswordVisibility() {
-  const passwordInput = document.getElementById('password');
-  const toggleIcon = document.getElementById('password-toggle-icon');
-  
-  if (passwordInput.type === 'password') {
-    passwordInput.type = 'text';
-    toggleIcon.classList.remove('fa-eye');
-    toggleIcon.classList.add('fa-eye-slash');
-  } else {
-    passwordInput.type = 'password';
-    toggleIcon.classList.remove('fa-eye-slash');
-    toggleIcon.classList.add('fa-eye');
-  }
-}
-
-// Registrazione Service Worker per supporto PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  });
-}
-
-function logout() {
-  if (confirm('Vuoi disconnetterti?')) {
-    localStorage.removeItem('isLoggedIn');
-    location.reload();
-  }
-}
-
-// --- Formattatore Valuta ---
+// --- Formattatore Valuta Italiana Garantito con Migliaia ---
 const formatCurrency = (val) => {
   return new Intl.NumberFormat('it-IT', { 
     style: 'currency', 
@@ -175,7 +88,7 @@ const defaultCategories = [
 let categories = JSON.parse(localStorage.getItem('categories')) || defaultCategories;
 categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
 
-// --- App Logic & DB ---
+// --- App Logic ---
 let currentType = 'spesa';
 let currentChartType = 'doughnut';
 let db;
@@ -191,7 +104,9 @@ request.onsuccess = (e) => {
   db = e.target.result;
   
   const savedUser = localStorage.getItem('saved_username');
+  const savedPass = localStorage.getItem('saved_password');
   if (savedUser) document.getElementById('username').value = savedUser;
+  if (savedPass) document.getElementById('password').value = savedPass;
 
   if (localStorage.getItem('isLoggedIn') === 'true') {
     initApp();
@@ -201,6 +116,34 @@ request.onsuccess = (e) => {
 const today = new Date();
 document.getElementById('date').valueAsDate = today;
 document.getElementById('month-filter').value = today.toISOString().slice(0, 7);
+
+document.getElementById('login-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const u = document.getElementById('username').value;
+  const p = document.getElementById('password').value;
+  const remember = document.getElementById('remember-me').checked;
+
+  if (u === 'michele' && p === '12345678') {
+    localStorage.setItem('isLoggedIn', 'true');
+    if (remember) {
+      localStorage.setItem('saved_username', u);
+      localStorage.setItem('saved_password', p);
+    } else {
+      localStorage.removeItem('saved_username');
+      localStorage.removeItem('saved_password');
+    }
+    initApp();
+  } else {
+    alert('Credenziali errate!');
+  }
+});
+
+function logout() {
+  if (confirm('Vuoi disconnetterti?')) {
+    localStorage.removeItem('isLoggedIn');
+    location.reload();
+  }
+}
 
 function initApp() {
   stopMatrix();
@@ -215,11 +158,11 @@ function setType(type) {
   const btnSpesa = document.getElementById('btn-spesa');
   const btnIncasso = document.getElementById('btn-incasso');
   if (type === 'spesa') {
-    btnSpesa.className = 'py-2 rounded-xl font-bold bg-rose-500 text-white transition text-xs flex items-center justify-center gap-1.5';
-    btnIncasso.className = 'py-2 rounded-xl font-bold bg-gray-700 text-gray-300 transition text-xs flex items-center justify-center gap-1.5';
+    btnSpesa.className = 'py-2.5 rounded-xl font-bold bg-rose-500 text-white transition';
+    btnIncasso.className = 'py-2.5 rounded-xl font-bold bg-gray-700 text-gray-300 transition';
   } else {
-    btnIncasso.className = 'py-2 rounded-xl font-bold bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5';
-    btnSpesa.className = 'py-2 rounded-xl font-bold bg-gray-700 text-gray-300 transition text-xs flex items-center justify-center gap-1.5';
+    btnIncasso.className = 'py-2.5 rounded-xl font-bold bg-emerald-500 text-white transition';
+    btnSpesa.className = 'py-2.5 rounded-xl font-bold bg-gray-700 text-gray-300 transition';
   }
 }
 
@@ -277,7 +220,7 @@ function resetForm() {
   document.getElementById('note').value = '';
   document.getElementById('date').valueAsDate = new Date();
   document.getElementById('form-title').textContent = 'Nuova Registrazione';
-  document.getElementById('btn-submit').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salva';
+  document.getElementById('btn-submit').textContent = 'Salva';
   document.getElementById('btn-cancel-edit').classList.add('hidden');
   setType('spesa');
 }
@@ -341,23 +284,23 @@ function renderHistory(list) {
     const signedValue = isSpesa ? -item.amount : item.amount;
     
     return `
-      <div class="flex justify-between items-center p-3 bg-gray-800/60 rounded-xl border border-gray-700/80">
+      <div class="flex justify-between items-center p-3 bg-gray-700/50 rounded-xl border border-gray-700">
         <div>
-          <div class="font-bold text-xs text-gray-200">${item.category} <span class="text-[10px] font-normal text-gray-400">(${accLabel})</span></div>
-          <div class="text-[10px] text-gray-400">${item.date} ${item.note ? '• ' + item.note : ''}</div>
+          <div class="font-bold text-sm">${item.category} <span class="text-xs font-normal text-gray-400">(${accLabel})</span></div>
+          <div class="text-xs text-gray-400">${item.date} ${item.note ? '• ' + item.note : ''}</div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <div class="font-black text-right text-xs ${isSpesa ? 'text-rose-400' : 'text-emerald-400'}">
             ${formatCurrency(signedValue)}
           </div>
           <div class="flex gap-1">
-            <button onclick="editTransaction(${item.id})" class="text-xs bg-gray-700 hover:bg-gray-600 p-1.5 rounded-lg text-gray-200"><i class="fa-solid fa-pen-to-square"></i></button>
-            <button onclick="deleteTransaction(${item.id})" class="text-xs bg-gray-700 hover:bg-rose-600 p-1.5 rounded-lg text-gray-200"><i class="fa-solid fa-trash-can"></i></button>
+            <button onclick="editTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-gray-500 p-1.5 rounded-lg text-gray-200">✏️</button>
+            <button onclick="deleteTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-rose-600 p-1.5 rounded-lg text-gray-200">🗑️</button>
           </div>
         </div>
       </div>
     `;
-  }).join('') || '<div class="text-gray-400 text-center py-4 text-xs">Nessun movimento nel periodo selezionato</div>';
+  }).join('') || '<div class="text-gray-400 text-center py-4">Nessun movimento nel periodo selezionato</div>';
 }
 
 function editTransaction(id) {
@@ -376,7 +319,7 @@ function editTransaction(id) {
     setType(item.type);
     
     document.getElementById('form-title').textContent = 'Modifica Registrazione';
-    document.getElementById('btn-submit').innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Aggiorna';
+    document.getElementById('btn-submit').textContent = 'Aggiorna Movimento';
     document.getElementById('btn-cancel-edit').classList.remove('hidden');
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -446,19 +389,19 @@ function renderStats(list) {
       const isPositive = utile >= 0;
 
       return `
-        <div class="bg-gray-800/40 p-2.5 rounded-xl border border-gray-700/80">
-          <div class="font-bold text-xs text-gray-200 mb-1">${cat}</div>
-          <div class="grid grid-cols-3 gap-1 text-[10px] text-center">
-            <div class="bg-gray-900/60 p-1 rounded-lg">
-              <span class="text-gray-400 block text-[9px]">Incassati</span>
+        <div class="bg-gray-700/40 p-3 rounded-xl border border-gray-700/80">
+          <div class="font-bold text-sm text-gray-200 mb-1">${cat}</div>
+          <div class="grid grid-cols-3 gap-1 text-xs text-center">
+            <div class="bg-gray-800/60 p-1.5 rounded-lg">
+              <span class="text-gray-400 block text-[10px]">Incassati</span>
               <span class="font-semibold text-emerald-400">${formatCurrency(inc)}</span>
             </div>
-            <div class="bg-gray-900/60 p-1 rounded-lg">
-              <span class="text-gray-400 block text-[9px]">Spesi</span>
+            <div class="bg-gray-800/60 p-1.5 rounded-lg">
+              <span class="text-gray-400 block text-[10px]">Spesi</span>
               <span class="font-semibold text-rose-400">${formatCurrency(-spe)}</span>
             </div>
-            <div class="bg-gray-900/60 p-1 rounded-lg">
-              <span class="text-gray-400 block text-[9px]">Utile / Netto</span>
+            <div class="bg-gray-800/60 p-1.5 rounded-lg">
+              <span class="text-gray-400 block text-[10px]">Utile / Netto</span>
               <span class="font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
                 ${formatCurrency(utile)}
               </span>
@@ -497,7 +440,7 @@ function renderStats(list) {
       plugins: { 
         legend: { 
           display: currentChartType === 'doughnut',
-          labels: { color: '#9ca3af', font: { size: 10 } } 
+          labels: { color: '#9ca3af', font: { size: 11 } } 
         },
         tooltip: {
           callbacks: {
@@ -511,7 +454,7 @@ function renderStats(list) {
         }
       },
       scales: currentChartType === 'bar' ? {
-        x: { ticks: { color: '#9ca3af', font: { size: 9 } }, grid: { display: false } },
+        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { display: false } },
         y: { ticks: { color: '#9ca3af', callback: (value) => formatCurrency(value) }, grid: { color: '#374151' } }
       } : {}
     }
@@ -522,13 +465,13 @@ function showTab(tab) {
   if (tab === 'history') {
     document.getElementById('content-history').classList.remove('hidden');
     document.getElementById('content-stats').classList.add('hidden');
-    document.getElementById('tab-history').className = 'flex-1 py-1 text-center text-xs font-bold border-b-2 border-emerald-400 text-emerald-400';
-    document.getElementById('tab-stats').className = 'flex-1 py-1 text-center text-xs font-bold text-gray-400';
+    document.getElementById('tab-history').className = 'flex-1 py-2 text-center text-sm font-bold border-b-2 border-emerald-400 text-emerald-400';
+    document.getElementById('tab-stats').className = 'flex-1 py-2 text-center text-sm font-bold text-gray-400';
   } else {
     document.getElementById('content-history').classList.add('hidden');
     document.getElementById('content-stats').classList.remove('hidden');
-    document.getElementById('tab-stats').className = 'flex-1 py-1 text-center text-xs font-bold border-b-2 border-emerald-400 text-emerald-400';
-    document.getElementById('tab-history').className = 'flex-1 py-1 text-center text-xs font-bold text-gray-400';
+    document.getElementById('tab-stats').className = 'flex-1 py-2 text-center text-sm font-bold border-b-2 border-emerald-400 text-emerald-400';
+    document.getElementById('tab-history').className = 'flex-1 py-2 text-center text-sm font-bold text-gray-400';
   }
 }
 
