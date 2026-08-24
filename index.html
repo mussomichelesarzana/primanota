@@ -58,14 +58,34 @@
 
   <!-- Main App UI -->
   <div id="app" class="hidden max-w-md mx-auto p-4 relative z-10">
-    <div class="bg-gray-800 p-4 rounded-2xl border border-gray-700 mb-4 shadow-md flex justify-between items-center">
-      <div>
-        <div class="text-xs text-gray-400 uppercase font-semibold">Saldo Periodo Selezionato</div>
-        <div id="total-balance" class="text-2xl font-black text-emerald-400">€ 0.00</div>
+    
+    <!-- Header Balances Breakdown -->
+    <div class="bg-gray-800 p-4 rounded-2xl border border-gray-700 mb-4 shadow-md">
+      <div class="flex justify-between items-center mb-3">
+        <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Disponibilità e Saldi</span>
+        <button onclick="logout()" class="text-xs bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded-lg text-gray-300 transition">Esci</button>
       </div>
-      <button onclick="logout()" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg text-gray-300 transition">Esci</button>
+
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <!-- Contanti -->
+        <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-700/60">
+          <div class="text-[10px] uppercase text-gray-400 font-semibold mb-1">Contanti</div>
+          <div id="bal-cash" class="text-sm font-black text-emerald-400">€ 0.00</div>
+        </div>
+        <!-- Banca / Bancomat -->
+        <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-700/60">
+          <div class="text-[10px] uppercase text-gray-400 font-semibold mb-1">Banca</div>
+          <div id="bal-banca" class="text-sm font-black text-emerald-400">€ 0.00</div>
+        </div>
+        <!-- Carta di Credito -->
+        <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-700/60">
+          <div class="text-[10px] uppercase text-gray-400 font-semibold mb-1">Carta (Addebiti)</div>
+          <div id="bal-carta" class="text-sm font-black text-rose-400">€ 0.00</div>
+        </div>
+      </div>
     </div>
 
+    <!-- Form Registrazione / Modifica -->
     <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 mb-6 shadow-lg">
       <div class="flex justify-between items-center mb-4">
         <h3 id="form-title" class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Nuova Registrazione</h3>
@@ -103,7 +123,7 @@
           <label class="block text-xs text-gray-400 mb-1">Conto / Metodo</label>
           <select id="account" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500" required>
             <option value="cash">Contanti</option>
-            <option value="banca">Banca</option>
+            <option value="banca">Banca / Bancomat</option>
             <option value="carta">Carta di Credito</option>
           </select>
         </div>
@@ -140,12 +160,10 @@
           <div class="text-xs font-semibold text-gray-400 uppercase mb-3">Ripartizione Spese</div>
           <canvas id="chart-categories" class="w-full"></canvas>
         </div>
-
-        <div id="account-breakdown" class="space-y-2 pt-4 border-t border-gray-700"></div>
       </div>
     </div>
   </div>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
