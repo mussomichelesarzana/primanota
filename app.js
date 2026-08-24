@@ -55,6 +55,15 @@ function stopMatrix() {
 window.addEventListener('resize', initMatrix);
 startMatrix();
 
+// --- Funzione Hashing SHA-256 ---
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // --- Formattatore Valuta Italiana Garantito con Migliaia ---
 const formatCurrency = (val) => {
   return new Intl.NumberFormat('it-IT', { 
@@ -104,9 +113,7 @@ request.onsuccess = (e) => {
   db = e.target.result;
   
   const savedUser = localStorage.getItem('saved_username');
-  const savedPass = localStorage.getItem('saved_password');
   if (savedUser) document.getElementById('username').value = savedUser;
-  if (savedPass) document.getElementById('password').value = savedPass;
 
   if (localStorage.getItem('isLoggedIn') === 'true') {
     initApp();
@@ -117,20 +124,24 @@ const today = new Date();
 document.getElementById('date').valueAsDate = today;
 document.getElementById('month-filter').value = today.toISOString().slice(0, 7);
 
-document.getElementById('login-form').addEventListener('submit', (e) => {
+// Credenziali Sicure (Hash SHA-256)
+const TARGET_USER = 'michele';
+const TARGET_HASH = '5f14e7a0e3f84cb5877f227ee0640d9cbff3628ff3a1a97d9fbbf939cd8dc9e2';
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const u = document.getElementById('username').value;
   const p = document.getElementById('password').value;
   const remember = document.getElementById('remember-me').checked;
 
-  if (u === 'michele' && p === '12345678') {
+  const inputHash = await hashPassword(p);
+
+  if (u === TARGET_USER && inputHash === TARGET_HASH) {
     localStorage.setItem('isLoggedIn', 'true');
     if (remember) {
       localStorage.setItem('saved_username', u);
-      localStorage.setItem('saved_password', p);
     } else {
       localStorage.removeItem('saved_username');
-      localStorage.removeItem('saved_password');
     }
     initApp();
   } else {
