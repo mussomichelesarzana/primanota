@@ -55,9 +55,15 @@ function stopMatrix() {
 window.addEventListener('resize', initMatrix);
 startMatrix();
 
-// --- Formattatore Valuta Italiana ---
+// --- Formattatore Valuta Italiana Garantito con Migliaia ---
 const formatCurrency = (val) => {
-  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(val);
+  return new Intl.NumberFormat('it-IT', { 
+    style: 'currency', 
+    currency: 'EUR',
+    useGrouping: true,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(val);
 };
 
 // --- Categorie Predefinite ---
@@ -275,6 +281,7 @@ function renderHistory(list) {
   container.innerHTML = list.map(item => {
     const isSpesa = item.type === 'spesa';
     const accLabel = item.account === 'cash' ? 'Contanti' : (item.account === 'banca' ? 'Banca' : 'Carta');
+    const signedValue = isSpesa ? -item.amount : item.amount;
     
     return `
       <div class="flex justify-between items-center p-3 bg-gray-700/50 rounded-xl border border-gray-700">
@@ -284,7 +291,7 @@ function renderHistory(list) {
         </div>
         <div class="flex items-center gap-3">
           <div class="font-black text-right text-xs ${isSpesa ? 'text-rose-400' : 'text-emerald-400'}">
-            ${isSpesa ? '-' : '+'}${formatCurrency(item.amount)}
+            ${formatCurrency(signedValue)}
           </div>
           <div class="flex gap-1">
             <button onclick="editTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-gray-500 p-1.5 rounded-lg text-gray-200">✏️</button>
@@ -387,16 +394,16 @@ function renderStats(list) {
           <div class="grid grid-cols-3 gap-1 text-xs text-center">
             <div class="bg-gray-800/60 p-1.5 rounded-lg">
               <span class="text-gray-400 block text-[10px]">Incassati</span>
-              <span class="font-semibold text-emerald-400">+${formatCurrency(inc)}</span>
+              <span class="font-semibold text-emerald-400">${formatCurrency(inc)}</span>
             </div>
             <div class="bg-gray-800/60 p-1.5 rounded-lg">
               <span class="text-gray-400 block text-[10px]">Spesi</span>
-              <span class="font-semibold text-rose-400">-${formatCurrency(spe)}</span>
+              <span class="font-semibold text-rose-400">${formatCurrency(-spe)}</span>
             </div>
             <div class="bg-gray-800/60 p-1.5 rounded-lg">
               <span class="text-gray-400 block text-[10px]">Utile / Netto</span>
               <span class="font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
-                ${isPositive ? '+' : ''}${formatCurrency(utile)}
+                ${formatCurrency(utile)}
               </span>
             </div>
           </div>
@@ -422,7 +429,7 @@ function renderStats(list) {
     data: {
       labels: chartLabels,
       datasets: [{
-        label: 'Spesa (€)',
+        label: 'Spesa',
         data: chartData,
         backgroundColor: ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#84cc16', '#a855f7'],
         borderRadius: currentChartType === 'bar' ? 6 : 0
@@ -440,12 +447,8 @@ function renderStats(list) {
             label: function(context) {
               let label = context.dataset.label || '';
               if (label) label += ': ';
-              if (context.parsed.y !== undefined) {
-                label += formatCurrency(context.parsed.y);
-              } else if (context.parsed !== undefined) {
-                label += formatCurrency(context.parsed);
-              }
-              return label;
+              const rawVal = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+              return label + formatCurrency(rawVal);
             }
           }
         }
