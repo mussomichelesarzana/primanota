@@ -215,7 +215,7 @@ document.getElementById('month-filter').value = today.toISOString().slice(0, 7);
 
 // Credenziali Sicure
 const TARGET_USER = 'michele';
-const TARGET_HASH = '5f14e7a0e3f84cb5877f227ee0640d9cbff3628ff3a1a97d9fbbf939cd8dc9e2';
+const TARGET_HASH = '1f92c3a504a39031c2bbd376f4e85747cbdfba0a104033df0cb4d4d8258ef9be';
 
 document.getElementById('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
