@@ -11,14 +11,15 @@ request.onupgradeneeded = (e) => {
 };
 request.onsuccess = (e) => {
   db = e.target.result;
+  // Controllo sessione salvata
   if (localStorage.getItem('isLoggedIn') === 'true') {
     initApp();
   }
 };
 
-// Categorie predefinite (inclusa Gioco d'azzardo)
+// Categorie predefinite
 let categories = JSON.parse(localStorage.getItem('categories')) || [
-  'Alimentari', 'Ristoranti', 'Carburante', 'Bollette', 'Stipendio', 'Gioco d\'azzardo', 'Svago', 'Varie'
+  'Spesa', 'Ristoranti', 'Carburante', 'Bollette', 'Stipendio', 'Gioco d\'azzardo'
 ];
 
 // Imposta la data odierna nel form e il mese corrente nel filtro
@@ -26,7 +27,7 @@ const today = new Date();
 document.getElementById('date').valueAsDate = today;
 document.getElementById('month-filter').value = today.toISOString().slice(0, 7);
 
-// Auth Logic
+// Autenticazione con salvataggio credenziali sul browser
 document.getElementById('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const u = document.getElementById('username').value;
@@ -79,9 +80,11 @@ function addCategory() {
   }
 }
 
-// Inserimento transazione
+// Inserimento o Modifica transazione
 document.getElementById('transaction-form').addEventListener('submit', (e) => {
   e.preventDefault();
+  const editId = document.getElementById('edit-id').value;
+
   const tx = {
     type: currentType,
     amount: parseFloat(document.getElementById('amount').value),
@@ -92,23 +95,41 @@ document.getElementById('transaction-form').addEventListener('submit', (e) => {
     timestamp: Date.now()
   };
 
-  const store = db.transaction('transactions', 'readwrite').objectStore('transactions');
-  store.add(tx).onsuccess = () => {
-    document.getElementById('amount').value = '';
-    document.getElementById('note').value = '';
-    loadData();
-  };
+  const transaction = db.transaction('transactions', 'readwrite');
+  const store = transaction.objectStore('transactions');
+
+  if (editId) {
+    tx.id = parseInt(editId);
+    store.put(tx).onsuccess = () => {
+      resetForm();
+      loadData();
+    };
+  } else {
+    store.add(tx).onsuccess = () => {
+      resetForm();
+      loadData();
+    };
+  }
 });
 
-// Caricamento Dati e Filtraggio
+function resetForm() {
+  document.getElementById('edit-id').value = '';
+  document.getElementById('amount').value = '';
+  document.getElementById('note').value = '';
+  document.getElementById('date').valueAsDate = new Date();
+  document.getElementById('form-title').textContent = 'Nuova Registrazione';
+  document.getElementById('btn-submit').textContent = 'Salva';
+  document.getElementById('btn-cancel-edit').classList.add('hidden');
+  setType('spesa');
+}
+
+// Caricamento Dati
 function loadData() {
-  const filterMonth = document.getElementById('month-filter').value; // Formato YYYY-MM
+  const filterMonth = document.getElementById('month-filter').value;
   const store = db.transaction('transactions', 'readonly').objectStore('transactions');
   
   store.getAll().onsuccess = (e) => {
     const allItems = e.target.result;
-    
-    // Filtra in base al mese/anno selezionato
     const filteredList = allItems.filter(item => item.date.startsWith(filterMonth))
                                  .sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -130,8 +151,14 @@ function renderHistory(list) {
           <div class="font-bold text-sm">${item.category} <span class="text-xs font-normal text-gray-400">(${item.account})</span></div>
           <div class="text-xs text-gray-400">${item.date} ${item.note ? '• ' + item.note : ''}</div>
         </div>
-        <div class="font-black ${isSpesa ? 'text-rose-400' : 'text-emerald-400'}">
-          ${isSpesa ? '-' : '+'}€ ${item.amount.toFixed(2)}
+        <div class="flex items-center gap-3">
+          <div class="font-black text-right ${isSpesa ? 'text-rose-400' : 'text-emerald-400'}">
+            ${isSpesa ? '-' : '+'}€ ${item.amount.toFixed(2)}
+          </div>
+          <div class="flex gap-1">
+            <button onclick="editTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-gray-500 p-1.5 rounded-lg text-gray-200">✏️</button>
+            <button onclick="deleteTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-rose-600 p-1.5 rounded-lg text-gray-200">🗑️</button>
+          </div>
         </div>
       </div>
     `;
@@ -142,12 +169,44 @@ function renderHistory(list) {
   totalEl.className = `text-2xl font-black ${total >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 }
 
+// Modifica ed Eliminazione
+function editTransaction(id) {
+  const store = db.transaction('transactions', 'readonly').objectStore('transactions');
+  store.get(id).onsuccess = (e) => {
+    const item = e.target.result;
+    if (!item) return;
+
+    document.getElementById('edit-id').value = item.id;
+    document.getElementById('amount').value = item.amount;
+    document.getElementById('date').value = item.date;
+    document.getElementById('category').value = item.category;
+    document.getElementById('account').value = item.account;
+    document.getElementById('note').value = item.note || '';
+    
+    setType(item.type);
+    
+    document.getElementById('form-title').textContent = 'Modifica Registrazione';
+    document.getElementById('btn-submit').textContent = 'Aggiorna Movimento';
+    document.getElementById('btn-cancel-edit').classList.remove('hidden');
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+}
+
+function deleteTransaction(id) {
+  if (confirm('Sei sicuro di voler eliminare questa registrazione?')) {
+    const store = db.transaction('transactions', 'readwrite').objectStore('transactions');
+    store.delete(id).onsuccess = () => {
+      loadData();
+    };
+  }
+}
+
 let chartInstance = null;
 function renderStats(list) {
   const catAnalysis = {};
   const accountsMap = { cash: 0, banca: 0, carta: 0 };
 
-  // Calcola Incassi, Spese e Utile per ogni Categoria
   list.forEach(item => {
     if (!catAnalysis[item.category]) {
       catAnalysis[item.category] = { incassi: 0, spese: 0 };
@@ -162,7 +221,6 @@ function renderStats(list) {
     }
   });
 
-  // Render Resoconto Dettagliato per Categoria
   const catContainer = document.getElementById('category-analysis');
   const catKeys = Object.keys(catAnalysis);
 
@@ -199,7 +257,6 @@ function renderStats(list) {
     }).join('');
   }
 
-  // Render Saldi Conto
   document.getElementById('account-breakdown').innerHTML = `
     <div class="text-xs font-semibold text-gray-400 mb-2 uppercase">Flusso per Conto (Periodo)</div>
     <div class="flex justify-between text-sm"><span>Contanti:</span> <span class="font-bold">€ ${accountsMap.cash.toFixed(2)}</span></div>
@@ -207,7 +264,6 @@ function renderStats(list) {
     <div class="flex justify-between text-sm"><span>Carta di Credito:</span> <span class="font-bold">€ ${accountsMap.carta.toFixed(2)}</span></div>
   `;
 
-  // Render Grafico Torta Spese
   const chartLabels = [];
   const chartData = [];
   Object.keys(catAnalysis).forEach(cat => {
