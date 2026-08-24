@@ -209,21 +209,28 @@ request.onsuccess = (e) => {
   }
 };
 
-const today = new Date();
-document.getElementById('date').valueAsDate = today;
-document.getElementById('month-filter').value = today.toISOString().slice(0, 7);
-
-// Credenziali Sicure
+// Credenziali Target
 const TARGET_USER = 'michele';
+// Hash SHA-256 nativo per "teMpl3b4r_"
 const TARGET_HASH = '1f92c3a504a39031c2bbd376f4e85747cbdfba0a104033df0cb4d4d8258ef9be';
 
-document.getElementById('login-form').addEventListener('submit', (e) => {
+// Funzione Async nativa SHA-256 (Web Crypto API)
+async function hashSHA256(str) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Event Listener del Login
+document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value.trim();
   const remember = document.getElementById('remember-me').checked;
 
-  const inputHash = sha256Pure(p);
+  const inputHash = await hashSHA256(p);
 
   if (u === TARGET_USER && inputHash === TARGET_HASH) {
     localStorage.setItem('isLoggedIn', 'true');
