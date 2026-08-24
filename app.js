@@ -1,3 +1,41 @@
+// --- Matrix Rain Animation ---
+const canvas = document.getElementById('matrix-canvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const alphabet = katakana + latin;
+
+const fontSize = 16;
+let columns = Math.floor(canvas.width / fontSize);
+let rainDrops = Array(columns).fill(1);
+
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(17, 24, 39, 0.08)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#10b981';
+  ctx.font = fontSize + 'px monospace';
+
+  for (let i = 0; i < rainDrops.length; i++) {
+    const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+    ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+
+    if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+      rainDrops[i] = 0;
+    }
+    rainDrops[i]++;
+  }
+}
+setInterval(drawMatrix, 33);
+
 let currentType = 'spesa';
 let db;
 
