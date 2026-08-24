@@ -16,12 +16,12 @@
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
 
-  <!-- Matrix Background Off-Screen Canvas per Login -->
+  <!-- Matrix Background Canvas -->
   <canvas id="matrix-canvas" class="fixed inset-0 pointer-events-none z-40" style="display:none;"></canvas>
 
   <!-- Login Modal -->
   <div id="login-modal" class="fixed inset-0 bg-gray-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="bg-gray-800/90 border border-gray-700/80 p-6 rounded-2xl w-full max-width-md max-w-sm shadow-2xl relative z-50">
+    <div class="bg-gray-800/90 border border-gray-700/80 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative z-50">
       <div class="text-center mb-6">
         <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 mb-3 border border-emerald-500/20">
           <i class="fa-solid fa-user-ninja text-2xl"></i>
@@ -30,7 +30,7 @@
         <p class="text-xs text-gray-400 mt-1">Inserisci le credenziali di accesso</p>
       </div>
 
-      <form id="login-form" class="space-y-4">
+      <form id="login-form" onsubmit="event.preventDefault(); doLogin();" class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Utente</label>
           <div class="relative">
@@ -61,7 +61,7 @@
           </label>
         </div>
 
-        <button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 font-black text-gray-950 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg shadow-emerald-500/20">
+        <button type="button" onclick="doLogin()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 font-black text-gray-950 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg shadow-emerald-500/20">
           <span>Accedi</span>
           <i class="fa-solid fa-bolt"></i>
         </button>
@@ -71,7 +71,7 @@
 
   <!-- App Main Content -->
   <div id="app" class="hidden max-w-md mx-auto p-4 pb-20">
-    <!-- Header / Nav -->
+    <!-- Header -->
     <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-800">
       <div>
         <h1 class="font-black text-lg text-emerald-400 flex items-center gap-2">
@@ -209,6 +209,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=3.0.0"></script>
 </body>
 </html>
