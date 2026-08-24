@@ -1,33 +1,30 @@
-// --- Matrix Rain Animation ---
+// --- Matrix Rain Engine ---
 const canvas = document.getElementById('matrix-canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 let matrixInterval = null;
+let rainDrops = [];
 
-function resizeCanvas() {
-  if (!canvas) return;
+const chars = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const fontSize = 16;
+
+function initMatrix() {
+  if (!canvas || !ctx) return;
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+  const columns = Math.floor(canvas.width / fontSize);
+  rainDrops = Array(columns).fill(1);
 }
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
-const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-const alphabet = katakana + latin;
-
-const fontSize = 16;
-let columns = Math.floor(canvas.width / fontSize);
-let rainDrops = Array(columns).fill(1);
 
 function drawMatrix() {
-  ctx.fillStyle = 'rgba(17, 24, 39, 0.08)';
+  if (!ctx) return;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = '#10b981';
+  ctx.fillStyle = '#0f0';
   ctx.font = fontSize + 'px monospace';
 
   for (let i = 0; i < rainDrops.length; i++) {
-    const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+    const text = chars.charAt(Math.floor(Math.random() * chars.length));
     ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
 
     if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
@@ -37,16 +34,27 @@ function drawMatrix() {
   }
 }
 
-function stopMatrix() {
-  if (matrixInterval) clearInterval(matrixInterval);
-  if (canvas) canvas.style.display = 'none';
-}
-
 function startMatrix() {
+  initMatrix();
   if (canvas) canvas.style.display = 'block';
-  matrixInterval = setInterval(drawMatrix, 33);
+  if (!matrixInterval) {
+    matrixInterval = setInterval(drawMatrix, 35);
+  }
 }
 
+function stopMatrix() {
+  if (matrixInterval) {
+    clearInterval(matrixInterval);
+    matrixInterval = null;
+  }
+  if (canvas) {
+    canvas.style.display = 'none';
+  }
+}
+
+window.addEventListener('resize', initMatrix);
+
+// Parte subito la pioggia Matrix
 startMatrix();
 
 // --- App Logic ---
@@ -63,13 +71,11 @@ request.onupgradeneeded = (e) => {
 request.onsuccess = (e) => {
   db = e.target.result;
   
-  // Ripristina credenziali salvate nei campi
   const savedUser = localStorage.getItem('saved_username');
   const savedPass = localStorage.getItem('saved_password');
   if (savedUser) document.getElementById('username').value = savedUser;
   if (savedPass) document.getElementById('password').value = savedPass;
 
-  // Auto-login se contrassegnato
   if (localStorage.getItem('isLoggedIn') === 'true') {
     initApp();
   }
@@ -83,7 +89,6 @@ const today = new Date();
 document.getElementById('date').valueAsDate = today;
 document.getElementById('month-filter').value = today.toISOString().slice(0, 7);
 
-// Login Logic
 document.getElementById('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const u = document.getElementById('username').value;
@@ -113,7 +118,7 @@ function logout() {
 }
 
 function initApp() {
-  stopMatrix(); // Ferma l'animazione Matrix all'ingresso nell'app
+  stopMatrix();
   document.getElementById('login-modal').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   renderCategories();
