@@ -72,7 +72,10 @@ function togglePasswordVisibility() {
 }
 
 // --- Credenziali & Login ---
-function doLogin() {
+// --- Credenziali & Login ---
+function doLogin(e) {
+  if (e) e.preventDefault();
+
   const u = document.getElementById('username').value.trim().toLowerCase();
   const p = document.getElementById('password').value.trim();
   const remember = document.getElementById('remember-me').checked;
@@ -93,6 +96,28 @@ function doLogin() {
   } else {
     alert('Credenziali errate!');
   }
+}
+
+function togglePasswordVisibility() {
+  const passwordInput = document.getElementById('password');
+  const toggleIcon = document.getElementById('password-toggle-icon');
+  
+  if (passwordInput.type === 'password') {
+    passwordInput.type = 'text';
+    toggleIcon.classList.remove('fa-eye');
+    toggleIcon.classList.add('fa-eye-slash');
+  } else {
+    passwordInput.type = 'password';
+    toggleIcon.classList.remove('fa-eye-slash');
+    toggleIcon.classList.add('fa-eye');
+  }
+}
+
+// Registrazione Service Worker per supporto PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
 }
 
 function logout() {
