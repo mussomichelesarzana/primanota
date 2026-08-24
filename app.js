@@ -209,10 +209,10 @@ request.onsuccess = (e) => {
   }
 };
 
-// Credenziali Target
+// Credenziali dedicate per Prima Nota
 const TARGET_USER = 'michele';
-// Hash SHA-256 nativo per "teMpl3b4r_"
-const TARGET_HASH = '1f92c3a504a39031c2bbd376f4e85747cbdfba0a104033df0cb4d4d8258ef9be';
+// Hash SHA-256 nativo per la password: t0p3tt4!
+const TARGET_HASH = '7f8c983d1e1c3a64bc77e0d376d4dbbf701777d4653dd80608935c138b3cf286';
 
 // Funzione Async nativa SHA-256 (Web Crypto API)
 async function hashSHA256(str) {
