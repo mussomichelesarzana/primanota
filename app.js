@@ -55,6 +55,11 @@ function stopMatrix() {
 window.addEventListener('resize', initMatrix);
 startMatrix();
 
+// --- Formattatore Valuta Italiana ---
+const formatCurrency = (val) => {
+  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(val);
+};
+
 // --- Categorie Predefinite ---
 const defaultCategories = [
   'Aperitivo',
@@ -69,6 +74,7 @@ const defaultCategories = [
   'GPL',
   'Gioco d\'azzardo',
   'Ristorante',
+  'Saldo Iniziale',
   'Spesa',
   'Stipendio'
 ];
@@ -78,6 +84,7 @@ categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
 
 // --- App Logic ---
 let currentType = 'spesa';
+let currentChartType = 'doughnut';
 let db;
 
 const request = indexedDB.open('PrimaNotaDB', 1);
@@ -250,16 +257,16 @@ function calculateAccountBalances(allItems, filterMonth) {
   });
 
   const cashEl = document.getElementById('bal-cash');
-  cashEl.textContent = `€ ${cashTotal.toFixed(2)}`;
-  cashEl.className = `text-sm font-black ${cashTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+  cashEl.textContent = formatCurrency(cashTotal);
+  cashEl.className = `text-xs font-black ${cashTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 
   const bancaEl = document.getElementById('bal-banca');
-  bancaEl.textContent = `€ ${bancaTotal.toFixed(2)}`;
-  bancaEl.className = `text-sm font-black ${bancaTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+  bancaEl.textContent = formatCurrency(bancaTotal);
+  bancaEl.className = `text-xs font-black ${bancaTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 
   const cartaEl = document.getElementById('bal-carta');
-  cartaEl.textContent = `€ ${cartaMonthTotal.toFixed(2)}`;
-  cartaEl.className = `text-sm font-black ${cartaMonthTotal > 0 ? 'text-rose-400' : 'text-emerald-400'}`;
+  cartaEl.textContent = formatCurrency(cartaMonthTotal);
+  cartaEl.className = `text-xs font-black ${cartaMonthTotal > 0 ? 'text-rose-400' : 'text-emerald-400'}`;
 }
 
 function renderHistory(list) {
@@ -276,8 +283,8 @@ function renderHistory(list) {
           <div class="text-xs text-gray-400">${item.date} ${item.note ? '• ' + item.note : ''}</div>
         </div>
         <div class="flex items-center gap-3">
-          <div class="font-black text-right ${isSpesa ? 'text-rose-400' : 'text-emerald-400'}">
-            ${isSpesa ? '-' : '+'}€ ${item.amount.toFixed(2)}
+          <div class="font-black text-right text-xs ${isSpesa ? 'text-rose-400' : 'text-emerald-400'}">
+            ${isSpesa ? '-' : '+'}${formatCurrency(item.amount)}
           </div>
           <div class="flex gap-1">
             <button onclick="editTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-gray-500 p-1.5 rounded-lg text-gray-200">✏️</button>
@@ -321,6 +328,21 @@ function deleteTransaction(id) {
   }
 }
 
+function setChartType(type) {
+  currentChartType = type;
+  const btnDoughnut = document.getElementById('btn-chart-doughnut');
+  const btnBar = document.getElementById('btn-chart-bar');
+
+  if (type === 'doughnut') {
+    btnDoughnut.className = 'px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-500 text-gray-950 transition';
+    btnBar.className = 'px-2 py-1 text-[10px] font-bold rounded-md text-gray-300 transition';
+  } else {
+    btnBar.className = 'px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-500 text-gray-950 transition';
+    btnDoughnut.className = 'px-2 py-1 text-[10px] font-bold rounded-md text-gray-300 transition';
+  }
+  loadData();
+}
+
 let chartInstance = null;
 function renderStats(list) {
   const catAnalysis = {};
@@ -337,8 +359,18 @@ function renderStats(list) {
     }
   });
 
+  const sortMode = document.getElementById('stats-sort')?.value || 'alpha';
+  let catKeys = Object.keys(catAnalysis);
+
+  if (sortMode === 'alpha') {
+    catKeys.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+  } else if (sortMode === 'max') {
+    catKeys.sort((a, b) => catAnalysis[b].spese - catAnalysis[a].spese);
+  } else if (sortMode === 'min') {
+    catKeys.sort((a, b) => catAnalysis[a].spese - catAnalysis[b].spese);
+  }
+
   const catContainer = document.getElementById('category-analysis');
-  const catKeys = Object.keys(catAnalysis).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
 
   if (catKeys.length === 0) {
     catContainer.innerHTML = '<div class="text-gray-400 text-center text-xs py-2">Nessun dato per le statistiche</div>';
@@ -355,16 +387,16 @@ function renderStats(list) {
           <div class="grid grid-cols-3 gap-1 text-xs text-center">
             <div class="bg-gray-800/60 p-1.5 rounded-lg">
               <span class="text-gray-400 block text-[10px]">Incassati</span>
-              <span class="font-semibold text-emerald-400">+€ ${inc.toFixed(2)}</span>
+              <span class="font-semibold text-emerald-400">+${formatCurrency(inc)}</span>
             </div>
             <div class="bg-gray-800/60 p-1.5 rounded-lg">
               <span class="text-gray-400 block text-[10px]">Spesi</span>
-              <span class="font-semibold text-rose-400">-€ ${spe.toFixed(2)}</span>
+              <span class="font-semibold text-rose-400">-${formatCurrency(spe)}</span>
             </div>
             <div class="bg-gray-800/60 p-1.5 rounded-lg">
               <span class="text-gray-400 block text-[10px]">Utile / Netto</span>
               <span class="font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
-                ${isPositive ? '+' : ''}€ ${utile.toFixed(2)}
+                ${isPositive ? '+' : ''}${formatCurrency(utile)}
               </span>
             </div>
           </div>
@@ -386,18 +418,42 @@ function renderStats(list) {
   if (chartInstance) chartInstance.destroy();
   
   chartInstance = new Chart(ctx, {
-    type: 'doughnut',
+    type: currentChartType,
     data: {
       labels: chartLabels,
       datasets: [{
+        label: 'Spesa (€)',
         data: chartData,
-        backgroundColor: ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#84cc16', '#a855f7']
+        backgroundColor: ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#84cc16', '#a855f7'],
+        borderRadius: currentChartType === 'bar' ? 6 : 0
       }]
     },
     options: { 
+      responsive: true,
       plugins: { 
-        legend: { labels: { color: '#9ca3af', font: { size: 11 } } } 
-      } 
+        legend: { 
+          display: currentChartType === 'doughnut',
+          labels: { color: '#9ca3af', font: { size: 11 } } 
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) label += ': ';
+              if (context.parsed.y !== undefined) {
+                label += formatCurrency(context.parsed.y);
+              } else if (context.parsed !== undefined) {
+                label += formatCurrency(context.parsed);
+              }
+              return label;
+            }
+          }
+        }
+      },
+      scales: currentChartType === 'bar' ? {
+        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#9ca3af', callback: (value) => formatCurrency(value) }, grid: { color: '#374151' } }
+      } : {}
     }
   });
 }
