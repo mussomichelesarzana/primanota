@@ -72,11 +72,8 @@ function togglePasswordVisibility() {
 }
 
 // --- Credenziali & Login ---
-const TARGET_USER = 'michele';
-const TARGET_HASH = '7f8c983d1e1c3a64bc77e0d376d4dbbf701777d4653dd80608935c138b3cf286';
-
-async function doLogin() {
-  const u = document.getElementById('username').value.trim();
+function doLogin() {
+  const u = document.getElementById('username').value.trim().toLowerCase();
   const p = document.getElementById('password').value.trim();
   const remember = document.getElementById('remember-me').checked;
 
@@ -85,26 +82,16 @@ async function doLogin() {
     return;
   }
 
-  try {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(p);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const inputHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-    if (u === TARGET_USER && inputHash === TARGET_HASH) {
-      localStorage.setItem('isLoggedIn', 'true');
-      if (remember) {
-        localStorage.setItem('saved_username', u);
-      } else {
-        localStorage.removeItem('saved_username');
-      }
-      initApp();
+  if (u === 'michele' && p === 't0p3tt4!') {
+    localStorage.setItem('isLoggedIn', 'true');
+    if (remember) {
+      localStorage.setItem('saved_username', u);
     } else {
-      alert('Credenziali errate!');
+      localStorage.removeItem('saved_username');
     }
-  } catch (err) {
-    alert('Errore durante la verifica delle credenziali: ' + err.message);
+    initApp();
+  } else {
+    alert('Credenziali errate!');
   }
 }
 
