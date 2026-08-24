@@ -55,6 +55,27 @@ function stopMatrix() {
 window.addEventListener('resize', initMatrix);
 startMatrix();
 
+// --- Categorie Predefinite ---
+const defaultCategories = [
+  'Aperitivo',
+  'Autostrada',
+  'Benzina',
+  'Bolletta ADSL',
+  'Bolletta Acqua',
+  'Bolletta GAS',
+  'Bolletta Luce',
+  'Colazione',
+  'Dealer',
+  'GPL',
+  'Gioco d\'azzardo',
+  'Ristorante',
+  'Spesa',
+  'Stipendio'
+];
+
+let categories = JSON.parse(localStorage.getItem('categories')) || defaultCategories;
+categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+
 // --- App Logic ---
 let currentType = 'spesa';
 let db;
@@ -78,10 +99,6 @@ request.onsuccess = (e) => {
     initApp();
   }
 };
-
-let categories = JSON.parse(localStorage.getItem('categories')) || [
-  'Alimentari', 'Ristoranti', 'Carburante', 'Bollette', 'Stipendio', 'Gioco d\'azzardo', 'Svago', 'Varie'
-];
 
 const today = new Date();
 document.getElementById('date').valueAsDate = today;
@@ -137,17 +154,19 @@ function setType(type) {
 }
 
 function renderCategories() {
+  categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
   const sel = document.getElementById('category');
   sel.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
 function addCategory() {
   const name = prompt('Nome nuova categoria:');
-  if (name && !categories.includes(name)) {
-    categories.push(name);
+  if (name && !categories.includes(name.trim())) {
+    categories.push(name.trim());
+    categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
     localStorage.setItem('categories', JSON.stringify(categories));
     renderCategories();
-    document.getElementById('category').value = name;
+    document.getElementById('category').value = name.trim();
   }
 }
 
@@ -200,10 +219,8 @@ function loadData() {
   store.getAll().onsuccess = (e) => {
     const allItems = e.target.result;
     
-    // 1. Calcolo saldi in tempo reale
     calculateAccountBalances(allItems, filterMonth);
 
-    // 2. Filtra per la lista visibile
     const filteredList = allItems.filter(item => item.date.startsWith(filterMonth))
                                  .sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -221,30 +238,25 @@ function calculateAccountBalances(allItems, filterMonth) {
     const isSpesa = item.type === 'spesa';
     const amount = isSpesa ? -item.amount : item.amount;
 
-    // Contanti e Banca mantengono lo storico complessivo
     if (item.account === 'cash') {
       cashTotal += amount;
     } else if (item.account === 'banca') {
       bancaTotal += amount;
     } else if (item.account === 'carta') {
-      // Carta di Credito: somma solo il mese filtrato attuale
       if (item.date.startsWith(filterMonth)) {
         cartaMonthTotal += isSpesa ? item.amount : -item.amount;
       }
     }
   });
 
-  // Render Contanti
   const cashEl = document.getElementById('bal-cash');
   cashEl.textContent = `€ ${cashTotal.toFixed(2)}`;
   cashEl.className = `text-sm font-black ${cashTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 
-  // Render Banca
   const bancaEl = document.getElementById('bal-banca');
   bancaEl.textContent = `€ ${bancaTotal.toFixed(2)}`;
   bancaEl.className = `text-sm font-black ${bancaTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 
-  // Render Carta (Addebito previsto)
   const cartaEl = document.getElementById('bal-carta');
   cartaEl.textContent = `€ ${cartaMonthTotal.toFixed(2)}`;
   cartaEl.className = `text-sm font-black ${cartaMonthTotal > 0 ? 'text-rose-400' : 'text-emerald-400'}`;
@@ -326,7 +338,7 @@ function renderStats(list) {
   });
 
   const catContainer = document.getElementById('category-analysis');
-  const catKeys = Object.keys(catAnalysis);
+  const catKeys = Object.keys(catAnalysis).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
 
   if (catKeys.length === 0) {
     catContainer.innerHTML = '<div class="text-gray-400 text-center text-xs py-2">Nessun dato per le statistiche</div>';
@@ -363,7 +375,7 @@ function renderStats(list) {
 
   const chartLabels = [];
   const chartData = [];
-  Object.keys(catAnalysis).forEach(cat => {
+  catKeys.forEach(cat => {
     if (catAnalysis[cat].spese > 0) {
       chartLabels.push(cat);
       chartData.push(catAnalysis[cat].spese);
@@ -379,7 +391,7 @@ function renderStats(list) {
       labels: chartLabels,
       datasets: [{
         data: chartData,
-        backgroundColor: ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b']
+        backgroundColor: ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#84cc16', '#a855f7']
       }]
     },
     options: { 
@@ -402,4 +414,75 @@ function showTab(tab) {
     document.getElementById('tab-stats').className = 'flex-1 py-2 text-center text-sm font-bold border-b-2 border-emerald-400 text-emerald-400';
     document.getElementById('tab-history').className = 'flex-1 py-2 text-center text-sm font-bold text-gray-400';
   }
+}
+
+// --- Funzioni Backup & Restore JSON ---
+function exportData() {
+  const transaction = db.transaction('transactions', 'readonly');
+  const store = transaction.objectStore('transactions');
+  
+  store.getAll().onsuccess = (e) => {
+    const backup = {
+      version: 1,
+      exportDate: new Date().toISOString(),
+      categories: categories,
+      transactions: e.target.result
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `prima_nota_backup_${new Date().toISOString().slice(0,10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.transactions || !data.categories) {
+        alert('File di backup non valido!');
+        return;
+      }
+
+      if (confirm(`Ripristinare ${data.transactions.length} movimenti e ${data.categories.length} categorie? I dati attuali verranno sovrascritti.`)) {
+        localStorage.setItem('categories', JSON.stringify(data.categories));
+        categories = data.categories;
+
+        const tx = db.transaction('transactions', 'readwrite');
+        const store = tx.objectStore('transactions');
+        
+        store.clear().onsuccess = () => {
+          let completed = 0;
+          if (data.transactions.length === 0) {
+            renderCategories();
+            loadData();
+            alert('Ripristino completato!');
+            return;
+          }
+          data.transactions.forEach(item => {
+            delete item.id;
+            store.add(item).onsuccess = () => {
+              completed++;
+              if (completed === data.transactions.length) {
+                renderCategories();
+                loadData();
+                alert('Ripristino completato con successo!');
+              }
+            };
+          });
+        };
+      }
+    } catch (err) {
+      alert('Errore durante la lettura del file JSON.');
+    }
+  };
+  reader.readAsText(file);
 }
