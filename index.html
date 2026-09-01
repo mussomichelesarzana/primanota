@@ -130,18 +130,17 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <div class="flex justify-between items-center mb-1">
-			  <label class="text-xs text-gray-400">Categoria</label>
-			  <div class="flex gap-1.5 text-xs font-semibold">
-				<button type="button" onclick="addCategory()" class="text-emerald-400 hover:underline">+ Nuova</button>
-				<span class="text-gray-600">|</span>
-				<button type="button" onclick="editCurrentCategory()" class="text-amber-400 hover:underline">✏️ Modifica</button>
-				<span class="text-gray-600">|</span>
-				<button type="button" onclick="deleteCurrentCategory()" class="text-rose-400 hover:underline">🗑️ Elimina</button>
-			  </div>
-			</div>
-            <select id="category" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500" required></select>
+            <label class="block text-xs text-gray-400 mb-1">Categoria</label>
+            <select id="category" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500 mb-1.5" required></select>
+            
+            <!-- Pulsanti Gestione Categoria posizionati sotto la Select -->
+            <div class="flex items-center justify-between text-[11px] font-semibold px-0.5">
+              <button type="button" onclick="addCategory()" class="text-emerald-400 hover:underline">+ Nuova</button>
+              <button type="button" onclick="editCurrentCategory()" class="text-amber-400 hover:underline">✏️ Modifica</button>
+              <button type="button" onclick="deleteCurrentCategory()" class="text-rose-400 hover:underline">🗑️ Elimina</button>
+            </div>
           </div>
+
           <div>
             <label class="block text-xs text-gray-400 mb-1">Stato Movimento</label>
             <select id="status" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500" required>
