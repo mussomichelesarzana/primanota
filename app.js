@@ -90,6 +90,7 @@ categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
 
 // --- App Logic ---
 let currentType = 'spesa';
+let currentStatType = 'spesa'; // 'spesa' oppure 'incasso'
 let currentChartType = 'doughnut';
 let db;
 
@@ -183,7 +184,6 @@ function addCategory() {
   }
 }
 
-// Modifica la categoria attualmente selezionata
 function editCurrentCategory() {
   const sel = document.getElementById('category');
   const oldName = sel.value;
@@ -205,14 +205,12 @@ function editCurrentCategory() {
     return;
   }
 
-  // Aggiorna l'array delle categorie
   const index = categories.indexOf(oldName);
   if (index !== -1) {
     categories[index] = trimmedNew;
     localStorage.setItem('categories', JSON.stringify(categories));
   }
 
-  // Aggiorna anche tutti i movimenti passati nel database che usavano questa categoria
   const transaction = db.transaction('transactions', 'readwrite');
   const store = transaction.objectStore('transactions');
   store.getAll().onsuccess = (e) => {
@@ -229,7 +227,6 @@ function editCurrentCategory() {
   };
 }
 
-// Elimina la categoria attualmente selezionata
 function deleteCurrentCategory() {
   const sel = document.getElementById('category');
   const catToDelete = sel.value;
@@ -241,7 +238,6 @@ function deleteCurrentCategory() {
     return;
   }
 
-  // Controlla se ci sono movimenti che usano questa categoria
   const store = db.transaction('transactions', 'readonly').objectStore('transactions');
   store.getAll().onsuccess = (e) => {
     const all = e.target.result;
@@ -333,15 +329,13 @@ function calculateAccountBalances(allItems, filterMonth) {
     const amount = isSpesa ? -item.amount : item.amount;
     const isPlanned = item.status === 'planned';
 
-    // Se è pianificato ed è del mese filtrato, calcoliamo il totale previsto
     if (isPlanned) {
       if (item.date.startsWith(filterMonth)) {
         plannedMonthTotal += amount;
       }
-      return; // NON incide sui saldi reali dei conti
+      return;
     }
 
-    // Soltanto i confermati aggiornano i saldi reali
     if (item.account === 'cash') {
       cashTotal += amount;
     } else if (item.account === 'banca') {
@@ -449,24 +443,6 @@ function deleteTransaction(id) {
   }
 }
 
-function setChartType(type) {
-  currentChartType = type;
-  const btnDoughnut = document.getElementById('btn-chart-doughnut');
-  const btnBar = document.getElementById('btn-chart-bar');
-
-  if (type === 'doughnut') {
-    btnDoughnut.className = 'px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-500 text-gray-950 transition';
-    btnBar.className = 'px-2 py-1 text-[10px] font-bold rounded-md text-gray-300 transition';
-  } else {
-    btnBar.className = 'px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-500 text-gray-950 transition';
-    btnDoughnut.className = 'px-2 py-1 text-[10px] font-bold rounded-md text-gray-300 transition';
-  }
-  loadData();
-}
-
-let chartInstance = null;
-let currentStatType = 'spesa'; // 'spesa' oppure 'incasso'
-
 function setStatType(type) {
   currentStatType = type;
   const btnSpesa = document.getElementById('btn-stat-spesa');
@@ -486,10 +462,25 @@ function setStatType(type) {
   loadData();
 }
 
+function setChartType(type) {
+  currentChartType = type;
+  const btnDoughnut = document.getElementById('btn-chart-doughnut');
+  const btnBar = document.getElementById('btn-chart-bar');
+
+  if (type === 'doughnut') {
+    btnDoughnut.className = 'px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-500 text-gray-950 transition';
+    btnBar.className = 'px-2 py-1 text-[10px] font-bold rounded-md text-gray-300 transition';
+  } else {
+    btnBar.className = 'px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-500 text-gray-950 transition';
+    btnDoughnut.className = 'px-2 py-1 text-[10px] font-bold rounded-md text-gray-300 transition';
+  }
+  loadData();
+}
+
+let chartInstance = null;
 function renderStats(list) {
   const catAnalysis = {};
 
-  // Raggruppa i dati per categoria
   list.forEach(item => {
     if (!catAnalysis[item.category]) {
       catAnalysis[item.category] = { incassi: 0, spese: 0 };
@@ -504,12 +495,10 @@ function renderStats(list) {
 
   const sortMode = document.getElementById('stats-sort')?.value || 'max';
   
-  // Filtra le categorie che hanno valori pertinenti al tipo di statistica selezionato
   let catKeys = Object.keys(catAnalysis).filter(cat => {
     return currentStatType === 'spesa' ? catAnalysis[cat].spese > 0 : catAnalysis[cat].incassi > 0;
   });
 
-  // Ordinamento
   if (sortMode === 'alpha') {
     catKeys.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
   } else if (sortMode === 'max') {
@@ -552,7 +541,6 @@ function renderStats(list) {
     }).join('');
   }
 
-  // Preparazione Grafico Torta / Istogramma
   const chartLabels = [];
   const chartData = [];
   catKeys.forEach(cat => {
