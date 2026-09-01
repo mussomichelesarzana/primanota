@@ -193,6 +193,7 @@ document.getElementById('transaction-form').addEventListener('submit', (e) => {
     date: document.getElementById('date').value,
     category: document.getElementById('category').value,
     account: document.getElementById('account').value,
+    status: document.getElementById('status').value || 'confirmed',
     note: document.getElementById('note').value,
     timestamp: Date.now()
   };
@@ -218,6 +219,7 @@ function resetForm() {
   document.getElementById('edit-id').value = '';
   document.getElementById('amount').value = '';
   document.getElementById('note').value = '';
+  document.getElementById('status').value = 'confirmed';
   document.getElementById('date').valueAsDate = new Date();
   document.getElementById('form-title').textContent = 'Nuova Registrazione';
   document.getElementById('btn-submit').textContent = 'Salva';
@@ -246,11 +248,22 @@ function calculateAccountBalances(allItems, filterMonth) {
   let cashTotal = 0;
   let bancaTotal = 0;
   let cartaMonthTotal = 0;
+  let plannedMonthTotal = 0;
 
   allItems.forEach(item => {
     const isSpesa = item.type === 'spesa';
     const amount = isSpesa ? -item.amount : item.amount;
+    const isPlanned = item.status === 'planned';
 
+    // Se è pianificato ed è del mese filtrato, calcoliamo il totale previsto
+    if (isPlanned) {
+      if (item.date.startsWith(filterMonth)) {
+        plannedMonthTotal += amount;
+      }
+      return; // NON incide sui saldi reali dei conti
+    }
+
+    // Soltanto i confermati aggiornano i saldi reali
     if (item.account === 'cash') {
       cashTotal += amount;
     } else if (item.account === 'banca') {
@@ -273,6 +286,10 @@ function calculateAccountBalances(allItems, filterMonth) {
   const cartaEl = document.getElementById('bal-carta');
   cartaEl.textContent = formatCurrency(cartaMonthTotal);
   cartaEl.className = `text-xs font-black ${cartaMonthTotal > 0 ? 'text-rose-400' : 'text-emerald-400'}`;
+
+  const plannedEl = document.getElementById('bal-planned');
+  plannedEl.textContent = formatCurrency(plannedMonthTotal);
+  plannedEl.className = `font-bold ${plannedMonthTotal >= 0 ? 'text-emerald-400' : 'text-amber-400'}`;
 }
 
 function renderHistory(list) {
@@ -280,20 +297,26 @@ function renderHistory(list) {
   
   container.innerHTML = list.map(item => {
     const isSpesa = item.type === 'spesa';
+    const isPlanned = item.status === 'planned';
     const accLabel = item.account === 'cash' ? 'Contanti' : (item.account === 'banca' ? 'Banca' : 'Carta');
     const signedValue = isSpesa ? -item.amount : item.amount;
     
     return `
-      <div class="flex justify-between items-center p-3 bg-gray-700/50 rounded-xl border border-gray-700">
+      <div class="flex justify-between items-center p-3 ${isPlanned ? 'bg-amber-950/20 border-amber-500/40 opacity-80' : 'bg-gray-700/50 border-gray-700'} rounded-xl border transition">
         <div>
-          <div class="font-bold text-sm">${item.category} <span class="text-xs font-normal text-gray-400">(${accLabel})</span></div>
+          <div class="font-bold text-sm flex items-center gap-1.5">
+            ${item.category} 
+            <span class="text-xs font-normal text-gray-400">(${accLabel})</span>
+            ${isPlanned ? '<span class="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-mono font-bold">PREVISTO</span>' : ''}
+          </div>
           <div class="text-xs text-gray-400">${item.date} ${item.note ? '• ' + item.note : ''}</div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
           <div class="font-black text-right text-xs ${isSpesa ? 'text-rose-400' : 'text-emerald-400'}">
             ${formatCurrency(signedValue)}
           </div>
           <div class="flex gap-1">
+            ${isPlanned ? `<button onclick="confirmTransaction(${item.id})" title="Segna come contabilizzato" class="text-xs bg-emerald-600 hover:bg-emerald-500 p-1.5 rounded-lg text-white font-bold transition">✔</button>` : ''}
             <button onclick="editTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-gray-500 p-1.5 rounded-lg text-gray-200">✏️</button>
             <button onclick="deleteTransaction(${item.id})" class="text-xs bg-gray-600 hover:bg-rose-600 p-1.5 rounded-lg text-gray-200">🗑️</button>
           </div>
@@ -301,6 +324,18 @@ function renderHistory(list) {
       </div>
     `;
   }).join('') || '<div class="text-gray-400 text-center py-4">Nessun movimento nel periodo selezionato</div>';
+}
+
+function confirmTransaction(id) {
+  const store = db.transaction('transactions', 'readwrite').objectStore('transactions');
+  store.get(id).onsuccess = (e) => {
+    const item = e.target.result;
+    if (!item) return;
+    item.status = 'confirmed';
+    store.put(item).onsuccess = () => {
+      loadData();
+    };
+  };
 }
 
 function editTransaction(id) {
@@ -314,6 +349,7 @@ function editTransaction(id) {
     document.getElementById('date').value = item.date;
     document.getElementById('category').value = item.category;
     document.getElementById('account').value = item.account;
+    document.getElementById('status').value = item.status || 'confirmed';
     document.getElementById('note').value = item.note || '';
     
     setType(item.type);
