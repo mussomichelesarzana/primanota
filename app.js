@@ -465,9 +465,31 @@ function setChartType(type) {
 }
 
 let chartInstance = null;
+let currentStatType = 'spesa'; // 'spesa' oppure 'incasso'
+
+function setStatType(type) {
+  currentStatType = type;
+  const btnSpesa = document.getElementById('btn-stat-spesa');
+  const btnIncasso = document.getElementById('btn-stat-incasso');
+
+  if (type === 'spesa') {
+    btnSpesa.className = 'py-2 rounded-lg text-xs font-black bg-rose-500 text-white transition';
+    btnIncasso.className = 'py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition';
+    document.getElementById('stats-section-title').textContent = 'Resoconto Spese per Categoria';
+    document.getElementById('chart-section-title').textContent = 'Ripartizione Spese';
+  } else {
+    btnIncasso.className = 'py-2 rounded-lg text-xs font-black bg-emerald-500 text-white transition';
+    btnSpesa.className = 'py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition';
+    document.getElementById('stats-section-title').textContent = 'Resoconto Incassi per Categoria';
+    document.getElementById('chart-section-title').textContent = 'Ripartizione Incassi';
+  }
+  loadData();
+}
+
 function renderStats(list) {
   const catAnalysis = {};
 
+  // Raggruppa i dati per categoria
   list.forEach(item => {
     if (!catAnalysis[item.category]) {
       catAnalysis[item.category] = { incassi: 0, spese: 0 };
@@ -480,72 +502,82 @@ function renderStats(list) {
     }
   });
 
-  const sortMode = document.getElementById('stats-sort')?.value || 'alpha';
-  let catKeys = Object.keys(catAnalysis);
+  const sortMode = document.getElementById('stats-sort')?.value || 'max';
+  
+  // Filtra le categorie che hanno valori pertinenti al tipo di statistica selezionato
+  let catKeys = Object.keys(catAnalysis).filter(cat => {
+    return currentStatType === 'spesa' ? catAnalysis[cat].spese > 0 : catAnalysis[cat].incassi > 0;
+  });
 
+  // Ordinamento
   if (sortMode === 'alpha') {
     catKeys.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
   } else if (sortMode === 'max') {
-    catKeys.sort((a, b) => catAnalysis[b].spese - catAnalysis[a].spese);
+    catKeys.sort((a, b) => {
+      const valA = currentStatType === 'spesa' ? catAnalysis[b].spese : catAnalysis[b].incassi;
+      const valB = currentStatType === 'spesa' ? catAnalysis[a].spese : catAnalysis[a].incassi;
+      return valA - valB;
+    });
   } else if (sortMode === 'min') {
-    catKeys.sort((a, b) => catAnalysis[a].spese - catAnalysis[b].spese);
+    catKeys.sort((a, b) => {
+      const valA = currentStatType === 'spesa' ? catAnalysis[a].spese : catAnalysis[a].incassi;
+      const valB = currentStatType === 'spesa' ? catAnalysis[b].spese : catAnalysis[b].incassi;
+      return valA - valB;
+    });
   }
 
   const catContainer = document.getElementById('category-analysis');
 
   if (catKeys.length === 0) {
-    catContainer.innerHTML = '<div class="text-gray-400 text-center text-xs py-2">Nessun dato per le statistiche</div>';
+    catContainer.innerHTML = `<div class="text-gray-400 text-center text-xs py-4">Nessun ${currentStatType === 'spesa' ? 'costo' : 'incasso'} registrato nel periodo</div>`;
   } else {
     catContainer.innerHTML = catKeys.map(cat => {
       const inc = catAnalysis[cat].incassi;
       const spe = catAnalysis[cat].spese;
-      const utile = inc - spe;
-      const isPositive = utile >= 0;
+      const targetVal = currentStatType === 'spesa' ? spe : inc;
 
       return `
-        <div class="bg-gray-700/40 p-3 rounded-xl border border-gray-700/80">
-          <div class="font-bold text-sm text-gray-200 mb-1">${cat}</div>
-          <div class="grid grid-cols-3 gap-1 text-xs text-center">
-            <div class="bg-gray-800/60 p-1.5 rounded-lg">
-              <span class="text-gray-400 block text-[10px]">Incassati</span>
-              <span class="font-semibold text-emerald-400">${formatCurrency(inc)}</span>
+        <div class="bg-gray-700/40 p-3 rounded-xl border border-gray-700/80 flex justify-between items-center">
+          <div>
+            <div class="font-bold text-sm text-gray-200">${cat}</div>
+            <div class="text-[11px] text-gray-400">
+              ${currentStatType === 'spesa' ? `Incassi correlati: ${formatCurrency(inc)}` : `Spese correlate: ${formatCurrency(-spe)}`}
             </div>
-            <div class="bg-gray-800/60 p-1.5 rounded-lg">
-              <span class="text-gray-400 block text-[10px]">Spesi</span>
-              <span class="font-semibold text-rose-400">${formatCurrency(-spe)}</span>
-            </div>
-            <div class="bg-gray-800/60 p-1.5 rounded-lg">
-              <span class="text-gray-400 block text-[10px]">Utile / Netto</span>
-              <span class="font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
-                ${formatCurrency(utile)}
-              </span>
-            </div>
+          </div>
+          <div class="font-black text-sm ${currentStatType === 'spesa' ? 'text-rose-400' : 'text-emerald-400'}">
+            ${currentStatType === 'spesa' ? formatCurrency(-targetVal) : formatCurrency(targetVal)}
           </div>
         </div>
       `;
     }).join('');
   }
 
+  // Preparazione Grafico Torta / Istogramma
   const chartLabels = [];
   const chartData = [];
   catKeys.forEach(cat => {
-    if (catAnalysis[cat].spese > 0) {
+    const val = currentStatType === 'spesa' ? catAnalysis[cat].spese : catAnalysis[cat].incassi;
+    if (val > 0) {
       chartLabels.push(cat);
-      chartData.push(catAnalysis[cat].spese);
+      chartData.push(val);
     }
   });
 
   const ctx = document.getElementById('chart-categories').getContext('2d');
   if (chartInstance) chartInstance.destroy();
   
+  const chartColor = currentStatType === 'spesa' ? '#f43f5e' : '#10b981';
+
   chartInstance = new Chart(ctx, {
     type: currentChartType,
     data: {
       labels: chartLabels,
       datasets: [{
-        label: 'Spesa',
+        label: currentStatType === 'spesa' ? 'Spesa (€)' : 'Incasso (€)',
         data: chartData,
-        backgroundColor: ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#84cc16', '#a855f7'],
+        backgroundColor: currentChartType === 'bar' 
+          ? chartColor 
+          : ['#10b981', '#3b82f6', '#f43f5e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#a855f7', '#64748b'],
         borderRadius: currentChartType === 'bar' ? 6 : 0
       }]
     },

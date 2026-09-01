@@ -182,13 +182,19 @@
       <div id="content-history" class="space-y-3 max-h-96 overflow-y-auto"></div>
 
       <div id="content-stats" class="hidden space-y-6">
+        <!-- Switch Tipo Statistica (Spese / Incassi) -->
+        <div class="grid grid-cols-2 gap-2 bg-gray-900/60 p-1.5 rounded-xl border border-gray-700">
+          <button type="button" id="btn-stat-spesa" onclick="setStatType('spesa')" class="py-2 rounded-lg text-xs font-black bg-rose-500 text-white transition">Spese</button>
+          <button type="button" id="btn-stat-incasso" onclick="setStatType('incasso')" class="py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition">Incassi</button>
+        </div>
+
         <div>
           <div class="flex justify-between items-center mb-3">
-            <span class="text-xs font-semibold text-gray-400 uppercase">Resoconto per Categoria</span>
+            <span id="stats-section-title" class="text-xs font-semibold text-gray-400 uppercase">Resoconto Spese per Categoria</span>
             <select id="stats-sort" onchange="loadData()" class="bg-gray-700 text-xs border border-gray-600 rounded-lg px-2 py-1 text-gray-200 focus:outline-none focus:border-emerald-500">
+              <option value="max">Importo Maggiore</option>
+              <option value="min">Importo Minore</option>
               <option value="alpha">Alfabetico</option>
-              <option value="max">Maggiore Spesa</option>
-              <option value="min">Minore Spesa</option>
             </select>
           </div>
           <div id="category-analysis" class="space-y-3"></div>
@@ -196,7 +202,7 @@
 
         <div class="pt-2 border-t border-gray-700">
           <div class="flex justify-between items-center mb-3">
-            <span class="text-xs font-semibold text-gray-400 uppercase">Ripartizione Spese</span>
+            <span id="chart-section-title" class="text-xs font-semibold text-gray-400 uppercase">Ripartizione Spese</span>
             <div class="flex bg-gray-700 rounded-lg p-0.5 border border-gray-600">
               <button onclick="setChartType('doughnut')" id="btn-chart-doughnut" class="px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-500 text-gray-950 transition">Torta</button>
               <button onclick="setChartType('bar')" id="btn-chart-bar" class="px-2 py-1 text-[10px] font-bold rounded-md text-gray-300 transition">Istogramma</button>
