@@ -183,6 +183,84 @@ function addCategory() {
   }
 }
 
+// Modifica la categoria attualmente selezionata
+function editCurrentCategory() {
+  const sel = document.getElementById('category');
+  const oldName = sel.value;
+
+  if (!oldName) return;
+
+  if (defaultCategories.includes(oldName)) {
+    alert(`La categoria di sistema "${oldName}" non può essere rinominata.`);
+    return;
+  }
+
+  const newName = prompt(`Modifica il nome della categoria "${oldName}":`, oldName);
+  if (!newName || newName.trim() === '' || newName.trim() === oldName) return;
+
+  const trimmedNew = newName.trim();
+
+  if (categories.includes(trimmedNew)) {
+    alert('Esiste già una categoria con questo nome!');
+    return;
+  }
+
+  // Aggiorna l'array delle categorie
+  const index = categories.indexOf(oldName);
+  if (index !== -1) {
+    categories[index] = trimmedNew;
+    localStorage.setItem('categories', JSON.stringify(categories));
+  }
+
+  // Aggiorna anche tutti i movimenti passati nel database che usavano questa categoria
+  const transaction = db.transaction('transactions', 'readwrite');
+  const store = transaction.objectStore('transactions');
+  store.getAll().onsuccess = (e) => {
+    const all = e.target.result;
+    all.forEach(item => {
+      if (item.category === oldName) {
+        item.category = trimmedNew;
+        store.put(item);
+      }
+    });
+    renderCategories();
+    document.getElementById('category').value = trimmedNew;
+    loadData();
+  };
+}
+
+// Elimina la categoria attualmente selezionata
+function deleteCurrentCategory() {
+  const sel = document.getElementById('category');
+  const catToDelete = sel.value;
+
+  if (!catToDelete) return;
+
+  if (defaultCategories.includes(catToDelete)) {
+    alert(`La categoria di sistema "${catToDelete}" non può essere eliminata.`);
+    return;
+  }
+
+  // Controlla se ci sono movimenti che usano questa categoria
+  const store = db.transaction('transactions', 'readonly').objectStore('transactions');
+  store.getAll().onsuccess = (e) => {
+    const all = e.target.result;
+    const isUsed = all.some(item => item.category === catToDelete);
+
+    if (isUsed) {
+      alert(`Impossibile eliminare "${catToDelete}": ci sono già dei movimenti registrati con questa categoria!`);
+      return;
+    }
+
+    if (confirm(`Sei sicuro di voler eliminare la categoria "${catToDelete}"?`)) {
+      categories = categories.filter(c => c !== catToDelete);
+      localStorage.setItem('categories', JSON.stringify(categories));
+      renderCategories();
+      loadData();
+    }
+  };
+}
+
 document.getElementById('transaction-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const editId = document.getElementById('edit-id').value;
