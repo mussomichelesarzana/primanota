@@ -260,7 +260,7 @@ function deleteCurrentCategory() {
   };
 }
 
-// --- Gestione Rollover Automatico Carta di Credito (1° del mese) ---
+// --- Gestione Rollover Automatico Carta di Credito (1° del mese con gestione anno) ---
 function checkAndProcessCreditCardRollover(callback) {
   const tx = db.transaction('transactions', 'readwrite');
   const store = tx.objectStore('transactions');
@@ -270,7 +270,6 @@ function checkAndProcessCreditCardRollover(callback) {
     const now = new Date();
     const currentMonthStr = now.toISOString().slice(0, 7); // YYYY-MM
 
-    // Raggruppa le spese della carta per mese
     const cardByMonth = {};
 
     all.forEach(item => {
@@ -295,12 +294,12 @@ function checkAndProcessCreditCardRollover(callback) {
 
       items.forEach(item => {
         monthTotal += item.type === 'spesa' ? item.amount : -item.amount;
-        item.cardProcessed = true; // Marca come elaborata per il rollover
+        item.cardProcessed = true;
         store.put(item);
       });
 
       if (monthTotal > 0) {
-        // Calcola la data dell'addebito (10 del mese successivo)
+        // Gestione cambio anno automatica (es. 12 -> 01 con anno + 1)
         const [mYear, mMonth] = mStr.split('-').map(Number);
         let nextYear = mYear;
         let nextMonth = mMonth + 1;
@@ -310,7 +309,7 @@ function checkAndProcessCreditCardRollover(callback) {
         }
         const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
         const chargeDate = `${nextMonthStr}-10`;
-        const totalWithFee = monthTotal + 2.00; // 2€ spese bancarie addebito carta
+        const totalWithFee = monthTotal + 2.00; // 2€ commissione addebito banca
 
         const newPlannedTx = {
           type: 'spesa',
@@ -418,7 +417,6 @@ function calculateAccountBalances(allItems, filterMonth) {
     } else if (item.account === 'hype') {
       hypeTotal += amount;
     } else if (item.account === 'carta') {
-      // Per la carta consideriamo solo i movimenti del mese selezionato non ancora processati dal rollover
       if (item.date.startsWith(filterMonth) && !item.cardProcessed) {
         cartaMonthTotal += isSpesa ? item.amount : -item.amount;
       }
@@ -550,7 +548,7 @@ function setStatType(type) {
     document.getElementById('chart-section-title').textContent = 'Ripartizione Incassi';
   } else {
     btnDiff.className = 'py-2 rounded-lg text-xs font-black bg-amber-500 text-white transition';
-    document.getElementById('stats-section-title').textContent = 'Saldo Netto per Categoria (Entrate - Uscite)';
+    document.getElementById('stats-section-title').textContent = 'Saldo Netto per Categoria (Miste)';
     document.getElementById('chart-section-title').textContent = 'Differenza Netta per Categoria';
   }
   loadData();
@@ -589,10 +587,11 @@ function renderStats(list) {
 
   const sortMode = document.getElementById('stats-sort')?.value || 'max';
   
+  // Filtro Categorie: per la modalità 'diff', mostra solo categorie che hanno SIA entrate SIA uscite nel mese
   let catKeys = Object.keys(catAnalysis).filter(cat => {
     if (currentStatType === 'spesa') return catAnalysis[cat].spese > 0;
     if (currentStatType === 'incasso') return catAnalysis[cat].incassi > 0;
-    return (catAnalysis[cat].spese > 0 || catAnalysis[cat].incassi > 0);
+    return (catAnalysis[cat].spese > 0 && catAnalysis[cat].incassi > 0);
   });
 
   if (sortMode === 'alpha') {
@@ -620,7 +619,10 @@ function renderStats(list) {
   const catContainer = document.getElementById('category-analysis');
 
   if (catKeys.length === 0) {
-    catContainer.innerHTML = `<div class="text-gray-400 text-center text-xs py-4">Nessun movimento registrato nel periodo</div>`;
+    const emptyMsg = currentStatType === 'diff' 
+      ? 'Nessuna categoria con entrate e uscite contemporanee nel periodo'
+      : 'Nessun movimento registrato nel periodo';
+    catContainer.innerHTML = `<div class="text-gray-400 text-center text-xs py-4">${emptyMsg}</div>`;
   } else {
     catContainer.innerHTML = catKeys.map(cat => {
       const inc = catAnalysis[cat].incassi;
