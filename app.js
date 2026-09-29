@@ -82,7 +82,8 @@ const defaultCategories = [
   'Ristorante',
   'Saldo Iniziale',
   'Spesa',
-  'Stipendio'
+  'Stipendio',
+  'Addebito Carta di Credito'
 ];
 
 let categories = JSON.parse(localStorage.getItem('categories')) || defaultCategories;
@@ -90,7 +91,7 @@ categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
 
 // --- App Logic ---
 let currentType = 'spesa';
-let currentStatType = 'spesa'; // 'spesa' oppure 'incasso'
+let currentStatType = 'spesa'; // 'spesa', 'incasso', oppure 'diff'
 let currentChartType = 'doughnut';
 let db;
 
@@ -151,7 +152,9 @@ function initApp() {
   document.getElementById('login-modal').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   renderCategories();
-  loadData();
+  checkAndProcessCreditCardRollover(() => {
+    loadData();
+  });
 }
 
 function setType(type) {
@@ -257,6 +260,77 @@ function deleteCurrentCategory() {
   };
 }
 
+// --- Gestione Rollover Automatico Carta di Credito (1° del mese) ---
+function checkAndProcessCreditCardRollover(callback) {
+  const tx = db.transaction('transactions', 'readwrite');
+  const store = tx.objectStore('transactions');
+
+  store.getAll().onsuccess = (e) => {
+    const all = e.target.result;
+    const now = new Date();
+    const currentMonthStr = now.toISOString().slice(0, 7); // YYYY-MM
+
+    // Raggruppa le spese della carta per mese
+    const cardByMonth = {};
+
+    all.forEach(item => {
+      if (item.account === 'carta' && !item.cardProcessed) {
+        const itemMonth = item.date.slice(0, 7);
+        if (itemMonth < currentMonthStr) {
+          if (!cardByMonth[itemMonth]) cardByMonth[itemMonth] = [];
+          cardByMonth[itemMonth].push(item);
+        }
+      }
+    });
+
+    const monthsToProcess = Object.keys(cardByMonth);
+    if (monthsToProcess.length === 0) {
+      if (callback) callback();
+      return;
+    }
+
+    monthsToProcess.forEach(mStr => {
+      const items = cardByMonth[mStr];
+      let monthTotal = 0;
+
+      items.forEach(item => {
+        monthTotal += item.type === 'spesa' ? item.amount : -item.amount;
+        item.cardProcessed = true; // Marca come elaborata per il rollover
+        store.put(item);
+      });
+
+      if (monthTotal > 0) {
+        // Calcola la data dell'addebito (10 del mese successivo)
+        const [mYear, mMonth] = mStr.split('-').map(Number);
+        let nextYear = mYear;
+        let nextMonth = mMonth + 1;
+        if (nextMonth > 12) {
+          nextMonth = 1;
+          nextYear++;
+        }
+        const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+        const chargeDate = `${nextMonthStr}-10`;
+        const totalWithFee = monthTotal + 2.00; // 2€ spese bancarie addebito carta
+
+        const newPlannedTx = {
+          type: 'spesa',
+          amount: parseFloat(totalWithFee.toFixed(2)),
+          date: chargeDate,
+          category: 'Addebito Carta di Credito',
+          account: 'banca',
+          status: 'planned',
+          note: `Addebito Carta di Credito periodo ${mStr} (${formatCurrency(monthTotal)} + 2,00 € commissione)`,
+          timestamp: Date.now()
+        };
+
+        store.add(newPlannedTx);
+      }
+    });
+
+    if (callback) callback();
+  };
+}
+
 document.getElementById('transaction-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const editId = document.getElementById('edit-id').value;
@@ -321,6 +395,7 @@ function loadData() {
 function calculateAccountBalances(allItems, filterMonth) {
   let cashTotal = 0;
   let bancaTotal = 0;
+  let hypeTotal = 0;
   let cartaMonthTotal = 0;
   let plannedMonthTotal = 0;
 
@@ -340,8 +415,11 @@ function calculateAccountBalances(allItems, filterMonth) {
       cashTotal += amount;
     } else if (item.account === 'banca') {
       bancaTotal += amount;
+    } else if (item.account === 'hype') {
+      hypeTotal += amount;
     } else if (item.account === 'carta') {
-      if (item.date.startsWith(filterMonth)) {
+      // Per la carta consideriamo solo i movimenti del mese selezionato non ancora processati dal rollover
+      if (item.date.startsWith(filterMonth) && !item.cardProcessed) {
         cartaMonthTotal += isSpesa ? item.amount : -item.amount;
       }
     }
@@ -354,6 +432,10 @@ function calculateAccountBalances(allItems, filterMonth) {
   const bancaEl = document.getElementById('bal-banca');
   bancaEl.textContent = formatCurrency(bancaTotal);
   bancaEl.className = `text-xs font-black ${bancaTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+  const hypeEl = document.getElementById('bal-hype');
+  hypeEl.textContent = formatCurrency(hypeTotal);
+  hypeEl.className = `text-xs font-black ${hypeTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 
   const cartaEl = document.getElementById('bal-carta');
   cartaEl.textContent = formatCurrency(cartaMonthTotal);
@@ -370,7 +452,12 @@ function renderHistory(list) {
   container.innerHTML = list.map(item => {
     const isSpesa = item.type === 'spesa';
     const isPlanned = item.status === 'planned';
-    const accLabel = item.account === 'cash' ? 'Contanti' : (item.account === 'banca' ? 'Banca' : 'Carta');
+    
+    let accLabel = 'Contanti';
+    if (item.account === 'banca') accLabel = 'Banca';
+    else if (item.account === 'hype') accLabel = 'Hype';
+    else if (item.account === 'carta') accLabel = 'Carta';
+
     const signedValue = isSpesa ? -item.amount : item.amount;
     
     return `
@@ -447,17 +534,24 @@ function setStatType(type) {
   currentStatType = type;
   const btnSpesa = document.getElementById('btn-stat-spesa');
   const btnIncasso = document.getElementById('btn-stat-incasso');
+  const btnDiff = document.getElementById('btn-stat-diff');
+
+  btnSpesa.className = 'py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition';
+  btnIncasso.className = 'py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition';
+  btnDiff.className = 'py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition';
 
   if (type === 'spesa') {
     btnSpesa.className = 'py-2 rounded-lg text-xs font-black bg-rose-500 text-white transition';
-    btnIncasso.className = 'py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition';
     document.getElementById('stats-section-title').textContent = 'Resoconto Spese per Categoria';
     document.getElementById('chart-section-title').textContent = 'Ripartizione Spese';
-  } else {
+  } else if (type === 'incasso') {
     btnIncasso.className = 'py-2 rounded-lg text-xs font-black bg-emerald-500 text-white transition';
-    btnSpesa.className = 'py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition';
     document.getElementById('stats-section-title').textContent = 'Resoconto Incassi per Categoria';
     document.getElementById('chart-section-title').textContent = 'Ripartizione Incassi';
+  } else {
+    btnDiff.className = 'py-2 rounded-lg text-xs font-black bg-amber-500 text-white transition';
+    document.getElementById('stats-section-title').textContent = 'Saldo Netto per Categoria (Entrate - Uscite)';
+    document.getElementById('chart-section-title').textContent = 'Differenza Netta per Categoria';
   }
   loadData();
 }
@@ -496,35 +590,64 @@ function renderStats(list) {
   const sortMode = document.getElementById('stats-sort')?.value || 'max';
   
   let catKeys = Object.keys(catAnalysis).filter(cat => {
-    return currentStatType === 'spesa' ? catAnalysis[cat].spese > 0 : catAnalysis[cat].incassi > 0;
+    if (currentStatType === 'spesa') return catAnalysis[cat].spese > 0;
+    if (currentStatType === 'incasso') return catAnalysis[cat].incassi > 0;
+    return (catAnalysis[cat].spese > 0 || catAnalysis[cat].incassi > 0);
   });
 
   if (sortMode === 'alpha') {
     catKeys.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
   } else if (sortMode === 'max') {
     catKeys.sort((a, b) => {
-      const valA = currentStatType === 'spesa' ? catAnalysis[b].spese : catAnalysis[b].incassi;
-      const valB = currentStatType === 'spesa' ? catAnalysis[a].spese : catAnalysis[a].incassi;
-      return valA - valB;
+      const getVal = (cat) => {
+        if (currentStatType === 'spesa') return catAnalysis[cat].spese;
+        if (currentStatType === 'incasso') return catAnalysis[cat].incassi;
+        return Math.abs(catAnalysis[cat].incassi - catAnalysis[cat].spese);
+      };
+      return getVal(b) - getVal(a);
     });
   } else if (sortMode === 'min') {
     catKeys.sort((a, b) => {
-      const valA = currentStatType === 'spesa' ? catAnalysis[a].spese : catAnalysis[a].incassi;
-      const valB = currentStatType === 'spesa' ? catAnalysis[b].spese : catAnalysis[b].incassi;
-      return valA - valB;
+      const getVal = (cat) => {
+        if (currentStatType === 'spesa') return catAnalysis[cat].spese;
+        if (currentStatType === 'incasso') return catAnalysis[cat].incassi;
+        return Math.abs(catAnalysis[cat].incassi - catAnalysis[cat].spese);
+      };
+      return getVal(a) - getVal(b);
     });
   }
 
   const catContainer = document.getElementById('category-analysis');
 
   if (catKeys.length === 0) {
-    catContainer.innerHTML = `<div class="text-gray-400 text-center text-xs py-4">Nessun ${currentStatType === 'spesa' ? 'costo' : 'incasso'} registrato nel periodo</div>`;
+    catContainer.innerHTML = `<div class="text-gray-400 text-center text-xs py-4">Nessun movimento registrato nel periodo</div>`;
   } else {
     catContainer.innerHTML = catKeys.map(cat => {
       const inc = catAnalysis[cat].incassi;
       const spe = catAnalysis[cat].spese;
-      const targetVal = currentStatType === 'spesa' ? spe : inc;
+      const diff = inc - spe;
 
+      if (currentStatType === 'diff') {
+        const isPositive = diff >= 0;
+        return `
+          <div class="bg-gray-700/40 p-3 rounded-xl border border-gray-700/80 flex justify-between items-center">
+            <div>
+              <div class="font-bold text-sm text-gray-200">${cat}</div>
+              <div class="text-[11px] text-gray-400">
+                Entrate: ${formatCurrency(inc)} • Uscite: ${formatCurrency(-spe)}
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-[10px] text-gray-400 uppercase font-semibold">Saldo Netto</div>
+              <div class="font-black text-sm ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
+                ${formatCurrency(diff)}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      const targetVal = currentStatType === 'spesa' ? spe : inc;
       return `
         <div class="bg-gray-700/40 p-3 rounded-xl border border-gray-700/80 flex justify-between items-center">
           <div>
@@ -544,8 +667,12 @@ function renderStats(list) {
   const chartLabels = [];
   const chartData = [];
   catKeys.forEach(cat => {
-    const val = currentStatType === 'spesa' ? catAnalysis[cat].spese : catAnalysis[cat].incassi;
-    if (val > 0) {
+    let val = 0;
+    if (currentStatType === 'spesa') val = catAnalysis[cat].spese;
+    else if (currentStatType === 'incasso') val = catAnalysis[cat].incassi;
+    else val = catAnalysis[cat].incassi - catAnalysis[cat].spese;
+
+    if (val !== 0) {
       chartLabels.push(cat);
       chartData.push(val);
     }
@@ -554,14 +681,16 @@ function renderStats(list) {
   const ctx = document.getElementById('chart-categories').getContext('2d');
   if (chartInstance) chartInstance.destroy();
   
-  const chartColor = currentStatType === 'spesa' ? '#f43f5e' : '#10b981';
+  let chartColor = '#10b981';
+  if (currentStatType === 'spesa') chartColor = '#f43f5e';
+  else if (currentStatType === 'diff') chartColor = '#f59e0b';
 
   chartInstance = new Chart(ctx, {
     type: currentChartType,
     data: {
       labels: chartLabels,
       datasets: [{
-        label: currentStatType === 'spesa' ? 'Spesa (€)' : 'Incasso (€)',
+        label: currentStatType === 'spesa' ? 'Spesa (€)' : (currentStatType === 'incasso' ? 'Incasso (€)' : 'Differenza (€)'),
         data: chartData,
         backgroundColor: currentChartType === 'bar' 
           ? chartColor 

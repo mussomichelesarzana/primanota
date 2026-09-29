@@ -66,20 +66,25 @@
         <button onclick="logout()" class="text-xs bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded-lg text-gray-300 transition">Esci</button>
       </div>
 
-      <div class="grid grid-cols-3 gap-2 text-center mb-2">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-2">
         <!-- Contanti -->
-        <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-700/60">
-          <div class="text-[10px] uppercase text-gray-400 font-semibold mb-1">Contanti</div>
+        <div class="bg-gray-900/60 p-2 rounded-xl border border-gray-700/60">
+          <div class="text-[9px] uppercase text-gray-400 font-semibold mb-1">Contanti</div>
           <div id="bal-cash" class="text-xs font-black text-emerald-400">0,00 €</div>
         </div>
         <!-- Banca / Bancomat -->
-        <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-700/60">
-          <div class="text-[10px] uppercase text-gray-400 font-semibold mb-1">Banca</div>
+        <div class="bg-gray-900/60 p-2 rounded-xl border border-gray-700/60">
+          <div class="text-[9px] uppercase text-gray-400 font-semibold mb-1">Banca</div>
           <div id="bal-banca" class="text-xs font-black text-emerald-400">0,00 €</div>
         </div>
+        <!-- Hype -->
+        <div class="bg-gray-900/60 p-2 rounded-xl border border-gray-700/60">
+          <div class="text-[9px] uppercase text-gray-400 font-semibold mb-1">Hype</div>
+          <div id="bal-hype" class="text-xs font-black text-emerald-400">0,00 €</div>
+        </div>
         <!-- Carta di Credito -->
-        <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-700/60">
-          <div class="text-[10px] uppercase text-gray-400 font-semibold mb-1">Carta (Addebiti)</div>
+        <div class="bg-gray-900/60 p-2 rounded-xl border border-gray-700/60">
+          <div class="text-[9px] uppercase text-gray-400 font-semibold mb-1">Carta (Addebiti)</div>
           <div id="bal-carta" class="text-xs font-black text-rose-400">0,00 €</div>
         </div>
       </div>
@@ -133,7 +138,6 @@
             <label class="block text-xs text-gray-400 mb-1">Categoria</label>
             <select id="category" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500 mb-1.5" required></select>
             
-            <!-- Pulsanti Gestione Categoria posizionati sotto la Select -->
             <div class="flex items-center justify-between text-[11px] font-semibold px-0.5">
               <button type="button" onclick="addCategory()" class="text-emerald-400 hover:underline">+ Nuova</button>
               <button type="button" onclick="editCurrentCategory()" class="text-amber-400 hover:underline">✏️ Modifica</button>
@@ -155,6 +159,7 @@
           <select id="account" class="w-full bg-gray-700 border border-gray-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500" required>
             <option value="cash">Contanti</option>
             <option value="banca">Banca / Bancomat</option>
+            <option value="hype">Hype</option>
             <option value="carta">Carta di Credito</option>
           </select>
         </div>
@@ -182,10 +187,11 @@
       <div id="content-history" class="space-y-3 max-h-96 overflow-y-auto"></div>
 
       <div id="content-stats" class="hidden space-y-6">
-        <!-- Switch Tipo Statistica (Spese / Incassi) -->
-        <div class="grid grid-cols-2 gap-2 bg-gray-900/60 p-1.5 rounded-xl border border-gray-700">
+        <!-- Switch Tipo Statistica (Spese / Incassi / Differenza) -->
+        <div class="grid grid-cols-3 gap-1.5 bg-gray-900/60 p-1.5 rounded-xl border border-gray-700">
           <button type="button" id="btn-stat-spesa" onclick="setStatType('spesa')" class="py-2 rounded-lg text-xs font-black bg-rose-500 text-white transition">Spese</button>
           <button type="button" id="btn-stat-incasso" onclick="setStatType('incasso')" class="py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition">Incassi</button>
+          <button type="button" id="btn-stat-diff" onclick="setStatType('diff')" class="py-2 rounded-lg text-xs font-black bg-gray-700 text-gray-300 transition">Differenza</button>
         </div>
 
         <div>
@@ -214,6 +220,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>
