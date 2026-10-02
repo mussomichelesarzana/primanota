@@ -55,7 +55,7 @@ function stopMatrix() {
 window.addEventListener('resize', initMatrix);
 startMatrix();
 
-// --- Formattatore Valuta Italiana Garantito con Migliaia ---
+// --- Formattatore Valuta Italiana ---
 const formatCurrency = (val) => {
   return new Intl.NumberFormat('it-IT', { 
     style: 'currency', 
@@ -86,47 +86,81 @@ const defaultCategories = [
   'Addebito Carta di Credito'
 ];
 
-let categories = JSON.parse(localStorage.getItem('categories')) || defaultCategories;
-categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+let currentUser = null;
+let userSettings = {
+  cardPayDay: 10,
+  splitPlannedDay: 10
+};
 
-// --- App Logic ---
+let categories = [];
 let currentType = 'spesa';
 let currentStatType = 'spesa'; // 'spesa', 'incasso', oppure 'diff'
 let currentChartType = 'doughnut';
-let db;
+let db = null;
 
-const request = indexedDB.open('PrimaNotaDB', 1);
-request.onupgradeneeded = (e) => {
-  db = e.target.result;
-  if (!db.objectStoreNames.contains('transactions')) {
-    db.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true });
+// Persistent Storage per prevenire la pulizia della cache Safari / iOS
+async function requestStoragePersistence() {
+  if (navigator.storage && navigator.storage.persist) {
+    const isPersisted = await navigator.storage.persist();
+    const statusEl = document.getElementById('storage-status');
+    if (statusEl) {
+      statusEl.textContent = isPersisted 
+        ? `Utente: ${currentUser.toUpperCase()} • Memoria protetta ✅` 
+        : `Utente: ${currentUser.toUpperCase()} • Memoria locale standard`;
+    }
   }
-};
-request.onsuccess = (e) => {
-  db = e.target.result;
+}
+
+function initDB(user, callback) {
+  const dbName = `PrimaNotaDB_${user}`;
+  const request = indexedDB.open(dbName, 1);
   
-  const savedUser = localStorage.getItem('saved_username');
-  const savedPass = localStorage.getItem('saved_password');
-  if (savedUser) document.getElementById('username').value = savedUser;
-  if (savedPass) document.getElementById('password').value = savedPass;
+  request.onupgradeneeded = (e) => {
+    const database = e.target.result;
+    if (!database.objectStoreNames.contains('transactions')) {
+      database.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true });
+    }
+  };
 
-  if (localStorage.getItem('isLoggedIn') === 'true') {
-    initApp();
-  }
-};
+  request.onsuccess = (e) => {
+    db = e.target.result;
+    if (callback) callback();
+  };
+}
 
 const today = new Date();
 document.getElementById('date').valueAsDate = today;
 document.getElementById('month-filter').value = today.toISOString().slice(0, 7);
 
+// Auto-Fill Login salvato
+const savedUser = localStorage.getItem('saved_username');
+const savedPass = localStorage.getItem('saved_password');
+if (savedUser) document.getElementById('username').value = savedUser;
+if (savedPass) document.getElementById('password').value = savedPass;
+
+if (localStorage.getItem('isLoggedIn') === 'true' && savedUser) {
+  currentUser = savedUser;
+  initDB(currentUser, () => {
+    initApp();
+  });
+}
+
 document.getElementById('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const u = document.getElementById('username').value;
+  const u = document.getElementById('username').value.trim().toLowerCase();
   const p = document.getElementById('password').value;
   const remember = document.getElementById('remember-me').checked;
 
-  if (u === 'michele' && p === '12345678') {
+  const validUsers = {
+    'michele': '12345678',
+    'grazia': '12345678'
+  };
+
+  if (validUsers[u] && validUsers[u] === p) {
+    currentUser = u;
     localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('active_user', u);
+
     if (remember) {
       localStorage.setItem('saved_username', u);
       localStorage.setItem('saved_password', p);
@@ -134,9 +168,12 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
       localStorage.removeItem('saved_username');
       localStorage.removeItem('saved_password');
     }
-    initApp();
+
+    initDB(currentUser, () => {
+      initApp();
+    });
   } else {
-    alert('Credenziali errate!');
+    alert('Credenziali errate! Inserisci un utente valido.');
   }
 });
 
@@ -147,10 +184,60 @@ function logout() {
   }
 }
 
+function loadUserSettings() {
+  const savedSettings = localStorage.getItem(`settings_${currentUser}`);
+  if (savedSettings) {
+    userSettings = JSON.parse(savedSettings);
+  } else {
+    // Valori predefiniti se non ancora personalizzati
+    userSettings = {
+      cardPayDay: currentUser === 'grazia' ? 15 : 10,
+      splitPlannedDay: 10
+    };
+  }
+
+  document.getElementById('setting-card-day').value = userSettings.cardPayDay;
+  document.getElementById('setting-split-day').value = userSettings.splitPlannedDay;
+  updatePlannedLabels();
+}
+
+function saveUserSettings() {
+  const cardDay = parseInt(document.getElementById('setting-card-day').value) || 10;
+  const splitDay = parseInt(document.getElementById('setting-split-day').value) || 10;
+
+  userSettings.cardPayDay = Math.min(Math.max(cardDay, 1), 31);
+  userSettings.splitPlannedDay = Math.min(Math.max(splitDay, 1), 31);
+
+  localStorage.setItem(`settings_${currentUser}`, JSON.stringify(userSettings));
+  updatePlannedLabels();
+  toggleSettingsModal();
+  loadData();
+}
+
+function updatePlannedLabels() {
+  const day = userSettings.splitPlannedDay;
+  document.getElementById('label-split-day').textContent = `Soglia: Giorno ${day}`;
+  document.getElementById('title-prev-before').textContent = `Entro il giorno ${day}`;
+  document.getElementById('title-prev-after').textContent = `Dal giorno ${day + 1} in poi`;
+}
+
+function toggleSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  modal.classList.toggle('hidden');
+}
+
 function initApp() {
   stopMatrix();
+  requestStoragePersistence();
+  loadUserSettings();
+
   document.getElementById('login-modal').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
+  document.getElementById('user-greeting').textContent = `Prima Nota (${currentUser.charAt(0).toUpperCase() + currentUser.slice(1)})`;
+
+  const savedCats = localStorage.getItem(`categories_${currentUser}`);
+  categories = savedCats ? JSON.parse(savedCats) : [...defaultCategories];
+
   renderCategories();
   checkAndProcessCreditCardRollover(() => {
     loadData();
@@ -181,7 +268,7 @@ function addCategory() {
   if (name && !categories.includes(name.trim())) {
     categories.push(name.trim());
     categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
-    localStorage.setItem('categories', JSON.stringify(categories));
+    localStorage.setItem(`categories_${currentUser}`, JSON.stringify(categories));
     renderCategories();
     document.getElementById('category').value = name.trim();
   }
@@ -211,7 +298,7 @@ function editCurrentCategory() {
   const index = categories.indexOf(oldName);
   if (index !== -1) {
     categories[index] = trimmedNew;
-    localStorage.setItem('categories', JSON.stringify(categories));
+    localStorage.setItem(`categories_${currentUser}`, JSON.stringify(categories));
   }
 
   const transaction = db.transaction('transactions', 'readwrite');
@@ -253,22 +340,23 @@ function deleteCurrentCategory() {
 
     if (confirm(`Sei sicuro di voler eliminare la categoria "${catToDelete}"?`)) {
       categories = categories.filter(c => c !== catToDelete);
-      localStorage.setItem('categories', JSON.stringify(categories));
+      localStorage.setItem(`categories_${currentUser}`, JSON.stringify(categories));
       renderCategories();
       loadData();
     }
   };
 }
 
-// --- Gestione Rollover Automatico Carta di Credito (1° del mese con gestione anno) ---
+// --- Gestione Rollover Carta di Credito con giorno personalizzabile ---
 function checkAndProcessCreditCardRollover(callback) {
+  if (!db) return;
   const tx = db.transaction('transactions', 'readwrite');
   const store = tx.objectStore('transactions');
 
   store.getAll().onsuccess = (e) => {
     const all = e.target.result;
     const now = new Date();
-    const currentMonthStr = now.toISOString().slice(0, 7); // YYYY-MM
+    const currentMonthStr = now.toISOString().slice(0, 7);
 
     const cardByMonth = {};
 
@@ -299,7 +387,6 @@ function checkAndProcessCreditCardRollover(callback) {
       });
 
       if (monthTotal > 0) {
-        // Gestione cambio anno automatica (es. 12 -> 01 con anno + 1)
         const [mYear, mMonth] = mStr.split('-').map(Number);
         let nextYear = mYear;
         let nextMonth = mMonth + 1;
@@ -308,8 +395,11 @@ function checkAndProcessCreditCardRollover(callback) {
           nextYear++;
         }
         const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
-        const chargeDate = `${nextMonthStr}-10`;
-        const totalWithFee = monthTotal + 2.00; // 2€ commissione addebito banca
+        
+        // Usa il giorno d'addebito impostato dall'utente
+        const payDay = String(userSettings.cardPayDay).padStart(2, '0');
+        const chargeDate = `${nextMonthStr}-${payDay}`;
+        const totalWithFee = monthTotal + 2.00;
 
         const newPlannedTx = {
           type: 'spesa',
@@ -369,12 +459,13 @@ function resetForm() {
   document.getElementById('status').value = 'confirmed';
   document.getElementById('date').valueAsDate = new Date();
   document.getElementById('form-title').textContent = 'Nuova Registrazione';
-  document.getElementById('btn-submit').textContent = 'Salva';
+  document.getElementById('btn-submit').textContent = 'Salva Movimento';
   document.getElementById('btn-cancel-edit').classList.add('hidden');
   setType('spesa');
 }
 
 function loadData() {
+  if (!db) return;
   const filterMonth = document.getElementById('month-filter').value;
   const store = db.transaction('transactions', 'readonly').objectStore('transactions');
   
@@ -395,8 +486,13 @@ function calculateAccountBalances(allItems, filterMonth) {
   let cashTotal = 0;
   let bancaTotal = 0;
   let hypeTotal = 0;
+  let fidatyTotal = 0;
   let cartaMonthTotal = 0;
-  let plannedMonthTotal = 0;
+  
+  let plannedBeforeTotal = 0;
+  let plannedAfterTotal = 0;
+
+  const splitDay = userSettings.splitPlannedDay;
 
   allItems.forEach(item => {
     const isSpesa = item.type === 'spesa';
@@ -405,7 +501,12 @@ function calculateAccountBalances(allItems, filterMonth) {
 
     if (isPlanned) {
       if (item.date.startsWith(filterMonth)) {
-        plannedMonthTotal += amount;
+        const itemDay = parseInt(item.date.split('-')[2]);
+        if (itemDay <= splitDay) {
+          plannedBeforeTotal += amount;
+        } else {
+          plannedAfterTotal += amount;
+        }
       }
       return;
     }
@@ -416,6 +517,8 @@ function calculateAccountBalances(allItems, filterMonth) {
       bancaTotal += amount;
     } else if (item.account === 'hype') {
       hypeTotal += amount;
+    } else if (item.account === 'fidaty') {
+      fidatyTotal += amount;
     } else if (item.account === 'carta') {
       if (item.date.startsWith(filterMonth) && !item.cardProcessed) {
         cartaMonthTotal += isSpesa ? item.amount : -item.amount;
@@ -435,13 +538,21 @@ function calculateAccountBalances(allItems, filterMonth) {
   hypeEl.textContent = formatCurrency(hypeTotal);
   hypeEl.className = `text-xs font-black ${hypeTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 
+  const fidatyEl = document.getElementById('bal-fidaty');
+  fidatyEl.textContent = formatCurrency(fidatyTotal);
+  fidatyEl.className = `text-xs font-black ${fidatyTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
   const cartaEl = document.getElementById('bal-carta');
   cartaEl.textContent = formatCurrency(cartaMonthTotal);
   cartaEl.className = `text-xs font-black ${cartaMonthTotal > 0 ? 'text-rose-400' : 'text-emerald-400'}`;
 
-  const plannedEl = document.getElementById('bal-planned');
-  plannedEl.textContent = formatCurrency(plannedMonthTotal);
-  plannedEl.className = `font-bold ${plannedMonthTotal >= 0 ? 'text-emerald-400' : 'text-amber-400'}`;
+  const plannedBeforeEl = document.getElementById('bal-planned-before');
+  plannedBeforeEl.textContent = formatCurrency(plannedBeforeTotal);
+  plannedBeforeEl.className = `font-bold ${plannedBeforeTotal >= 0 ? 'text-emerald-400' : 'text-amber-400'}`;
+
+  const plannedAfterEl = document.getElementById('bal-planned-after');
+  plannedAfterEl.textContent = formatCurrency(plannedAfterTotal);
+  plannedAfterEl.className = `font-bold ${plannedAfterTotal >= 0 ? 'text-emerald-400' : 'text-amber-400'}`;
 }
 
 function renderHistory(list) {
@@ -455,6 +566,7 @@ function renderHistory(list) {
     if (item.account === 'banca') accLabel = 'Banca';
     else if (item.account === 'hype') accLabel = 'Hype';
     else if (item.account === 'carta') accLabel = 'Carta';
+    else if (item.account === 'fidaty') accLabel = 'Fidaty Oro';
 
     const signedValue = isSpesa ? -item.amount : item.amount;
     
@@ -571,9 +683,17 @@ function setChartType(type) {
 
 let chartInstance = null;
 function renderStats(list) {
+  const accountFilter = document.getElementById('stats-account-filter')?.value || 'all';
+  
+  // Filtra per conto nelle statistiche
+  const filteredList = list.filter(item => {
+    if (accountFilter === 'all') return true;
+    return item.account === accountFilter;
+  });
+
   const catAnalysis = {};
 
-  list.forEach(item => {
+  filteredList.forEach(item => {
     if (!catAnalysis[item.category]) {
       catAnalysis[item.category] = { incassi: 0, spese: 0 };
     }
@@ -587,7 +707,7 @@ function renderStats(list) {
 
   const sortMode = document.getElementById('stats-sort')?.value || 'max';
   
-  // Filtro Categorie: per la modalità 'diff', mostra solo categorie che hanno SIA entrate SIA uscite nel mese
+  // Filtro differenze: mostra solo se ci sono entrate E uscite contemporanee
   let catKeys = Object.keys(catAnalysis).filter(cat => {
     if (currentStatType === 'spesa') return catAnalysis[cat].spese > 0;
     if (currentStatType === 'incasso') return catAnalysis[cat].incassi > 0;
@@ -620,8 +740,8 @@ function renderStats(list) {
 
   if (catKeys.length === 0) {
     const emptyMsg = currentStatType === 'diff' 
-      ? 'Nessuna categoria con entrate e uscite contemporanee nel periodo'
-      : 'Nessun movimento registrato nel periodo';
+      ? 'Nessuna categoria con entrate e uscite contemporanee nel periodo o conto selezionato'
+      : 'Nessun movimento registrato nel periodo o conto selezionato';
     catContainer.innerHTML = `<div class="text-gray-400 text-center text-xs py-4">${emptyMsg}</div>`;
   } else {
     catContainer.innerHTML = catKeys.map(cat => {
@@ -740,15 +860,18 @@ function showTab(tab) {
   }
 }
 
-// --- Funzioni Backup & Restore JSON ---
+// --- Backup & Restore JSON con isolamento utente ---
 function exportData() {
+  if (!db) return;
   const transaction = db.transaction('transactions', 'readonly');
   const store = transaction.objectStore('transactions');
   
   store.getAll().onsuccess = (e) => {
     const backup = {
-      version: 1,
+      version: 2,
+      user: currentUser,
       exportDate: new Date().toISOString(),
+      settings: userSettings,
       categories: categories,
       transactions: e.target.result
     };
@@ -756,7 +879,7 @@ function exportData() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `prima_nota_backup_${new Date().toISOString().slice(0,10)}.json`);
+    downloadAnchor.setAttribute("download", `prima_nota_${currentUser}_${new Date().toISOString().slice(0,10)}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -776,8 +899,14 @@ function importData(event) {
         return;
       }
 
-      if (confirm(`Ripristinare ${data.transactions.length} movimenti e ${data.categories.length} categorie? I dati attuali verranno sovrascritti.`)) {
-        localStorage.setItem('categories', JSON.stringify(data.categories));
+      if (confirm(`Ripristinare il backup per ${currentUser.toUpperCase()}? (${data.transactions.length} movimenti). I dati attuali verranno sovrascritti.`)) {
+        if (data.settings) {
+          userSettings = data.settings;
+          localStorage.setItem(`settings_${currentUser}`, JSON.stringify(userSettings));
+          loadUserSettings();
+        }
+
+        localStorage.setItem(`categories_${currentUser}`, JSON.stringify(data.categories));
         categories = data.categories;
 
         const tx = db.transaction('transactions', 'readwrite');
