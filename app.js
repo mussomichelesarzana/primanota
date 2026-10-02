@@ -111,6 +111,7 @@ async function requestStoragePersistence() {
   }
 }
 
+// Inizializzazione DB con supporto al recupero automatico dai vecchi dati
 function initDB(user, callback) {
   const dbName = `PrimaNotaDB_${user}`;
   const request = indexedDB.open(dbName, 1);
@@ -124,7 +125,69 @@ function initDB(user, callback) {
 
   request.onsuccess = (e) => {
     db = e.target.result;
-    if (callback) callback();
+
+    // Se l'utente è Michele, controlla ed esegui eventuale migrazione dal vecchio database unificato
+    if (user === 'michele') {
+      migrateOldDataIfNeeded(() => {
+        if (callback) callback();
+      });
+    } else {
+      if (callback) callback();
+    }
+  };
+}
+
+// Funzione di recupero/migrazione automatica dal vecchio database PrimaNotaDB
+function migrateOldDataIfNeeded(onComplete) {
+  const oldDbReq = indexedDB.open('PrimaNotaDB');
+
+  oldDbReq.onsuccess = (e) => {
+    const oldDb = e.target.result;
+    if (!oldDb.objectStoreNames.contains('transactions')) {
+      oldDb.close();
+      onComplete();
+      return;
+    }
+
+    const oldTx = oldDb.transaction('transactions', 'readonly');
+    const oldStore = oldTx.objectStore('transactions');
+
+    oldStore.getAll().onsuccess = (ev) => {
+      const oldItems = ev.target.result;
+
+      if (oldItems && oldItems.length > 0) {
+        // Verifica se il nuovo DB è vuoto prima di copiare
+        const newTx = db.transaction('transactions', 'readwrite');
+        const newStore = newTx.objectStore('transactions');
+
+        newStore.count().onsuccess = (cEvent) => {
+          if (cEvent.target.result === 0) {
+            let copied = 0;
+            oldItems.forEach(item => {
+              delete item.id; // lascia generare i nuovi ID autoincrementati
+              newStore.add(item).onsuccess = () => {
+                copied++;
+                if (copied === oldItems.length) {
+                  oldDb.close();
+                  onComplete();
+                }
+              };
+            });
+          } else {
+            oldDb.close();
+            onComplete();
+          }
+        };
+      } else {
+        oldDb.close();
+        onComplete();
+      }
+    };
+  };
+
+  oldDbReq.onerror = () => {
+    // Se non esisteva un vecchio DB, prosegui normalmente
+    onComplete();
   };
 }
 
@@ -189,7 +252,6 @@ function loadUserSettings() {
   if (savedSettings) {
     userSettings = JSON.parse(savedSettings);
   } else {
-    // Valori predefiniti se non ancora personalizzati
     userSettings = {
       cardPayDay: currentUser === 'grazia' ? 15 : 10,
       splitPlannedDay: 10
@@ -235,7 +297,12 @@ function initApp() {
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-greeting').textContent = `Prima Nota (${currentUser.charAt(0).toUpperCase() + currentUser.slice(1)})`;
 
-  const savedCats = localStorage.getItem(`categories_${currentUser}`);
+  // Se esistono categorie salvate sotto la chiave generica precedente, recuperale
+  let savedCats = localStorage.getItem(`categories_${currentUser}`);
+  if (!savedCats && localStorage.getItem('categories')) {
+    savedCats = localStorage.getItem('categories');
+  }
+  
   categories = savedCats ? JSON.parse(savedCats) : [...defaultCategories];
 
   renderCategories();
@@ -396,7 +463,6 @@ function checkAndProcessCreditCardRollover(callback) {
         }
         const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
         
-        // Usa il giorno d'addebito impostato dall'utente
         const payDay = String(userSettings.cardPayDay).padStart(2, '0');
         const chargeDate = `${nextMonthStr}-${payDay}`;
         const totalWithFee = monthTotal + 2.00;
@@ -685,7 +751,6 @@ let chartInstance = null;
 function renderStats(list) {
   const accountFilter = document.getElementById('stats-account-filter')?.value || 'all';
   
-  // Filtra per conto nelle statistiche
   const filteredList = list.filter(item => {
     if (accountFilter === 'all') return true;
     return item.account === accountFilter;
@@ -706,8 +771,7 @@ function renderStats(list) {
   });
 
   const sortMode = document.getElementById('stats-sort')?.value || 'max';
-  
-  // Filtro differenze: mostra solo se ci sono entrate E uscite contemporanee
+
   let catKeys = Object.keys(catAnalysis).filter(cat => {
     if (currentStatType === 'spesa') return catAnalysis[cat].spese > 0;
     if (currentStatType === 'incasso') return catAnalysis[cat].incassi > 0;
@@ -860,7 +924,7 @@ function showTab(tab) {
   }
 }
 
-// --- Backup & Restore JSON con isolamento utente ---
+// --- Backup & Restore JSON ---
 function exportData() {
   if (!db) return;
   const transaction = db.transaction('transactions', 'readonly');
@@ -880,7 +944,6 @@ function exportData() {
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
     downloadAnchor.setAttribute("download", `prima_nota_${currentUser}_${new Date().toISOString().slice(0,10)}.json`);
-    document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
   };
